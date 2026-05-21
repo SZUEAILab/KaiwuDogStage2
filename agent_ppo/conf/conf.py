@@ -102,6 +102,31 @@ class LocomotionConfig(StageConfig):
     task_type = "standard"
 
 
+class StairsDownConfig(StageConfig):
+    """
+    Stage: stairs_down — focused training on descending stairs (pyramid_stairs_inv).
+    阶段：stairs_down —— 专注训练下台阶（pyramid_stairs_inv）。
+    """
+
+    name = "stairs_down"
+    task_type = "standard"
+
+    # Lower learning rate for stable convergence
+    lr = 1e-4
+
+    # More steps per env for better data collection
+    num_steps_per_env = 64
+
+    # Fewer epochs to prevent overfitting
+    num_learning_epochs = 3
+
+    # Larger batch for stable updates
+    num_mini_batches = 8
+
+    # Higher min std to prevent policy collapse
+    min_normalized_std = [0.1, 0.05, 0.1] * 4
+
+
 class Config:
     """
     Unified config entry point.
@@ -116,7 +141,7 @@ class Config:
 
     # Switch stage by changing CURRENT
     # 通过修改 CURRENT 切换阶段
-    CURRENT = LocomotionConfig
+    CURRENT = StairsDownConfig
 
     @staticmethod
     def load_conf(logger):

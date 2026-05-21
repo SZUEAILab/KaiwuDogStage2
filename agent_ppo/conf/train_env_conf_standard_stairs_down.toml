@@ -1,0 +1,189 @@
+# =============================================================================
+# Stair Down Training: focused training on pyramid_stairs_inv terrain only.
+# 专注训练下台阶：仅使用 pyramid_stairs_inv 地形。
+#
+# Key changes vs. standard:
+# 1. Single terrain type (pyramid_stairs_inv) for focused learning
+# 2. Reduced initial difficulty level to ease learning
+# 3. Lower initial velocity commands to prevent falls
+# 4. Reduced entropy_coef for stable convergence
+# 5. Stronger stability rewards (feet_stumble, air_time)
+# =============================================================================
+
+# === Basic Configuration ===
+# === 基础配置 ===
+[env]
+# Number of parallel environments
+# 并行环境数量
+num_envs = 2048
+
+# Max episode duration (seconds)
+# 最大 episode 时长（秒）
+episode_length_s = 25
+
+[env_conf]
+seed = 0
+
+
+# === Terrain Configuration ===
+# === 地形配置 ===
+[terrain]
+mode = "standard"
+num_rows = 10
+num_cols = 20
+difficulty_range = [0.0, 1.0]
+curriculum = true
+
+# Start at low difficulty (level 0-2) for easier stairs
+# 从低难度开始，更容易学会下台阶
+max_init_terrain_level = 2
+
+
+# Focus on stairs_down only
+# 专注下楼梯
+[terrain.standard.pyramid_stairs_inv]
+proportion = 1.0
+
+
+# === Domain Randomization ===
+# === 域随机化 ===
+[domain_rand]
+enable_domain_rand = true
+randomize_friction = true
+friction_range = [0.5, 1.5]  # Slightly narrower range for stairs
+push_robots = true
+push_interval_s = 20  # Less frequent pushes during stair training
+max_push_vel_xy = 0.3  # Weaker pushes to prevent falls
+
+
+# === Observation Noise ===
+# === 观测噪声 ===
+[noise]
+add_noise = true
+
+
+# === Initial State ===
+# === 初始状态 ===
+[init_state]
+pos = [0.0, 0.0, 0.35]
+
+
+# === Velocity Commands ===
+# === 速度命令 ===
+[commands]
+# Slower resampling for consistency
+# 较慢的重采样以保持一致性
+resampling_time = [15.0, 15.0]
+
+[commands.limit]
+# Speed limits
+lin_vel_x = [-1.5, 1.5]
+lin_vel_y = [-0.8, 0.8]
+ang_vel_z = [-1.0, 1.0]
+
+[commands.ranges]
+# Start slow for stair training
+# 下台阶训练时起步慢
+lin_vel_x = [0.0, 0.3]  # Slower forward speed
+lin_vel_y = [-0.1, 0.1]  # Minimal side movement
+ang_vel_yaw = [-0.5, 0.5]  # Moderate turning
+
+
+# =====================================================================
+# Reward Configuration
+# =====================================================================
+
+# --- Positive: velocity tracking ---
+# --- 正向：速度跟踪 ---
+[rewards.track_lin_vel_xy]
+weight = 1.0
+[rewards.track_lin_vel_xy.params]
+std = 0.25
+command_name = "base_velocity"
+
+[rewards.track_ang_vel_z]
+weight = 0.3
+[rewards.track_ang_vel_z.params]
+std = 0.25
+command_name = "base_velocity"
+
+# --- Positive: forward progress (down stairs) ---
+# --- 正向：前进奖励（下台阶） ---
+[rewards.forward_velocity]
+weight = 2.0
+
+# --- Positive: feet air time (step quality) ---
+# --- 正向：脚部滞空时间（步态质量） ---
+[rewards.feet_air_time]
+weight = 1.0
+[rewards.feet_air_time.params]
+threshold = 0.3
+command_name = "base_velocity"
+
+# --- Negative: base stability ---
+# --- 负向：基座稳定 ---
+[rewards.lin_vel_z]
+weight = -1.5
+
+[rewards.ang_vel_xy]
+weight = -0.1
+
+# --- Negative: joint smoothness ---
+# --- 负向：关节平滑 ---
+[rewards.joint_acc]
+weight = -2.5e-7
+
+[rewards.joint_torques]
+weight = -5e-5  # Slightly stronger torque penalty
+
+[rewards.dof_pos_limits]
+weight = -2.0
+
+# --- Negative: action smoothness ---
+# --- 负向：动作平滑 ---
+[rewards.action_rate]
+weight = -0.02  # Stronger action smoothing
+
+# --- Negative: undesired contacts ---
+# --- 负向：碰撞 ---
+[rewards.undesired_contacts]
+weight = -1.0
+[rewards.undesired_contacts.params]
+threshold = 1
+
+# --- Negative: feet stumble (stair edge collision) ---
+# --- 负向：绊脚（台阶边缘碰撞）---
+[rewards.feet_stumble]
+weight = -2.0
+
+# --- Negative: feet slide ---
+# --- 负向：脚部滑动 ---
+[rewards.feet_slide]
+weight = -0.5
+
+# --- Extra: anti-tipping ---
+# --- 额外：防倾倒 ---
+[rewards.flat_orientation]
+weight = -2.0  # Stronger orientation penalty for stairs
+
+# --- Extra: termination penalty ---
+# --- 额外：终止惩罚 ---
+[rewards.termination]
+weight = -1.0
+
+# --- Posture: base height tracking ---
+# --- 姿态：基座高度跟踪 ---
+[rewards.correct_base_height]
+weight = -1.0
+[rewards.correct_base_height.params]
+target_height = 0.38
+
+# --- Posture: hip joints return to default ---
+# --- 姿态：髋关节回归默认角度 ---
+[rewards.hip_to_default]
+weight = -0.05
+
+# --- Energy: torque × joint velocity ---
+# --- 能耗：扭矩 × 关节速度 ---
+[rewards.energy]
+weight = -2e-5
