@@ -134,31 +134,60 @@ class RewardProcess(RewardProcessBase):
         # Stub: returns zero. Replace with actual goal-distance reward for track terrain.
         return torch.zeros(self._get_robot_asset().data.root_lin_vel_b.shape[0], device=self._get_robot_asset().device)
 
+    # --- Framework built-in rewards not in base class ---
+    # These are used in DIY configs but not provided by RewardProcessBase.
+    # 以下奖励 DIY 配置里用了但框架基类没提供，需手动实现。
+
     def _reward_energy(self):
         """Penalize energy consumption (torque × joint velocity).
         惩罚能耗（扭矩 × 关节速度）。
         """
         asset = self._get_robot_asset()
-        return torch.sum(torch.abs(asset.data.joint_torques * asset.data.joint_vel), dim=1)
+        return torch.sum(torch.abs(asset.data.applied_torque * asset.data.joint_vel), dim=1)
 
     def _reward_correct_base_height(self, target_height: float = 0.38):
         """Penalize deviation from target base height.
         惩罚基座离地高度偏离目标值。
-
-        Args:
-            target_height: Target base height in meters.
         """
         asset = self._get_robot_asset()
         return torch.square(asset.data.root_pos_w[:, 2] - target_height)
 
     def _reward_hip_to_default(self):
-        """Penalize hip joints (first joint of each leg) deviating from default.
+        """Penalize hip joints deviating from default.
         惩罚髋关节偏离默认角度。
         """
         asset = self._get_robot_asset()
-        # Hips are at indices 0, 3, 6, 9 (first joint of each leg)
         hip_indices = [0, 3, 6, 9]
         hip_pos = asset.data.joint_pos[:, hip_indices]
         hip_default = asset.data.default_joint_pos[:, hip_indices]
         return torch.sum(torch.square(hip_pos - hip_default), dim=1)
+
+    def _reward_feet_height_body(self, command_name: str = "base_velocity", target_height: float = -0.30, tanh_mult: float = 2.0):
+        """Penalize foot height deviation from target in body frame.
+        惩罚脚部机体坐标系高度偏差。
+        """
+        asset_cfg = self._get_foot_asset_cfg()
+        asset = self.env.scene[asset_cfg.name]
+        foot_pos = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
+        base_pos = self._get_robot_asset().data.root_pos_w[:, 2:3]
+        error = torch.square(foot_pos - base_pos - target_height)
+        reward = torch.tanh(tanh_mult * error)
+        is_moving = torch.norm(self.env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
+        return torch.mean(reward, dim=1) * is_moving.float()
+
+    def _reward_action_smoothness(self):
+        """Penalize 2nd-order action rate.
+        惩罚二阶动作平滑度。
+        """
+        am = self.env.action_manager
+        delta = am.action - am.prev_action
+        if not hasattr(self.env, "_prev_action_delta") or self.env._prev_action_delta is None:
+            self.env._prev_action_delta = delta.clone()
+            return torch.zeros(self.env.num_envs, device=delta.device)
+        smoothness = torch.sum(torch.square(delta - self.env._prev_action_delta), dim=1)
+        term_mgr = self.env.termination_manager
+        reset_mask = term_mgr.terminated | term_mgr.time_outs
+        delta[reset_mask] = 0.0
+        self.env._prev_action_delta = delta.clone()
+        return smoothness
 
