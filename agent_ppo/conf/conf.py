@@ -127,6 +127,73 @@ class StairsDownConfig(StageConfig):
     min_normalized_std = [0.1, 0.05, 0.1] * 4
 
 
+class AllTerrainConfig(StageConfig):
+    """
+    Stage: all_terrain — comprehensive locomotion training on all sub-terrains.
+    阶段：all_terrain —— 在所有子地形上综合训练基本运动策略。
+
+    Uses all 5 sub-terrain types and comprehensive rewards to learn
+    robust locomotion (forward, lateral, turning, stair ascent/descent).
+    使用全部 5 种子地形和综合奖励，学习鲁棒的运动策略。
+    """
+
+    name = "all_terrain"
+    task_type = "standard"
+
+    # Moderate learning rate for stable all-terrain training
+    lr = 3e-4
+
+    # Standard rollout length
+    num_steps_per_env = 48
+
+    # Standard epoch/mini-batch split
+    num_learning_epochs = 5
+    num_mini_batches = 4
+
+    # Standard noise
+    min_normalized_std = [0.05, 0.02, 0.05] * 4
+
+
+class TrackNavConfig(StageConfig):
+    """
+    Stage: nav — track-terrain navigation training (end-to-end).
+    阶段：nav —— track 地形导航训练（端到端）。
+
+    Joint locomotion + navigation training on track terrain with
+    navigation-focused rewards. Locomotion rewards are down-weighted
+    so the navigation signal (approach goal, avoid obstacles) dominates.
+    在 track 地形上联合训练运控 + 导航，导航奖励权重更高，
+    导航信号（接近目标、避障）主导训练。
+
+    For true hierarchical nav (frozen locomotion + trainable nav policy),
+    use the hierarchical config variant after standard locomotion pretraining.
+    真正的层级导航（冻结运控 + 可训练导航策略）需在 standard 预训练后使用。
+    """
+
+    name = "nav"
+    task_type = "track"
+
+    # Navigation-relevant observation: adds 4D goal (robot-frame xyz + distance)
+    # 导航相关观测：增加 4 维 goal（机器人坐标系 xyz + 距离）
+    num_goal_obs = 4
+    num_critic_observations = 320  # critic_base(316) + goal(4)
+
+    # Lower learning rate for stable policy adaptation
+    lr = 1e-4
+
+    # Longer rollout for track terrain (longer episodes, more data)
+    num_steps_per_env = 64
+
+    # Fewer epochs to prevent overfitting on nav-specific data
+    num_learning_epochs = 3
+
+    # Larger mini-batches for stable updates
+    num_mini_batches = 8
+
+    # Preserve exploration for navigation
+    min_normalized_std = [0.08, 0.03, 0.08] * 4
+
+
 class Config:
     """
     Unified config entry point.

@@ -131,8 +131,15 @@ class RewardProcess(RewardProcessBase):
         Args:
             threshold: Distance threshold for goal completion (meters).
         """
-        # Stub: returns zero. Replace with actual goal-distance reward for track terrain.
-        return torch.zeros(self._get_robot_asset().data.root_lin_vel_b.shape[0], device=self._get_robot_asset().device)
+        if not hasattr(self.env, "goal_positions") or self.env.goal_positions is None:
+            return torch.zeros(self.env.num_envs, device=self.env.device)
+
+        robot = self._get_robot_asset()
+        robot_pos = robot.data.root_pos_w[:, :2]
+        goal_pos = self.env.goal_positions[:, :2]
+
+        dist = torch.norm(goal_pos - robot_pos, dim=1)
+        return (dist < threshold).float()
 
     # --- Framework built-in rewards not in base class ---
     # These are used in DIY configs but not provided by RewardProcessBase.
@@ -145,12 +152,17 @@ class RewardProcess(RewardProcessBase):
         asset = self._get_robot_asset()
         return torch.sum(torch.abs(asset.data.applied_torque * asset.data.joint_vel), dim=1)
 
-    def _reward_correct_base_height(self, target_height: float = 0.38):
-        """Penalize deviation from target base height.
-        惩罚基座离地高度偏离目标值。
+    def _reward_correct_base_height(self, target_height: float = 0.38, margin: float = 0.05):
+        """Penalize base height deviation outside [target ± margin] relative to ground.
+
+        No penalty within the zone; squared penalty from the nearest bound outside.
+        基座离地高度超出 [target ± margin] 区间时给予惩罚（相对地面高度）。
         """
         asset = self._get_robot_asset()
-        return torch.square(asset.data.root_pos_w[:, 2] - target_height)
+        sensor = self.env.scene.sensors["height_scanner"]
+        ground_height = sensor.data.ray_hits_w[..., 2].median(dim=1).values
+        error = asset.data.root_pos_w[:, 2] - ground_height - target_height
+        return torch.square(torch.clamp(torch.abs(error) - margin, min=0.0))
 
     def _reward_hip_to_default(self):
         """Penalize hip joints deviating from default.
@@ -190,4 +202,136 @@ class RewardProcess(RewardProcessBase):
         delta[reset_mask] = 0.0
         self.env._prev_action_delta = delta.clone()
         return smoothness
+
+    # -----------------------------------------------------------------------
+    # Navigation rewards (track terrain)
+    # 导航奖励（track 地形）
+    # -----------------------------------------------------------------------
+
+    def _reward_obstacle_evasion(
+        self,
+        command_name: str = "base_velocity",
+        obstacle_threshold: float = -0.3,
+        near_x_end: int = 10,
+        body_y_start: int = 3,
+        body_y_end: int = 13,
+        turn_std: float = 0.5,
+    ):
+        """Penalize forward-blocked path when robot is not actively turning.
+
+        惩罚前方被障碍阻挡时未主动转向。
+
+        Uses height_scan near-field window to detect tall obstacles (pillars/walls)
+        directly ahead, and angular velocity to detect evasion turning.
+
+        Grid layout (16x16, offset 0.75m fwd, res=0.1m):
+          reshaped (N, 16, 16) -> dim0=y_idx, dim1=x_idx
+          y: -0.75m(idx0) .. +0.75m(idx15)
+          x: 0.0m(idx0) .. 1.5m(idx15)
+
+        Default window:
+          Y [3:13] = -0.45m ~ +0.55m (body width, catches side walls)
+          X [:10]  = 0.0m ~ 0.9m (~1s reaction at 0.5~1.0 m/s)
+        """
+        asset = self._get_robot_asset()
+        sensor = self.env.scene.sensors["height_scanner"]
+
+        # raw height: base_z - hit_z (positive=ground below, negative=obstacle above)
+        scan = sensor.data.pos_w[:, 2:3] - sensor.data.ray_hits_w[..., 2]
+        grid = scan.view(self.env.num_envs, 16, 16)
+
+        # near-field body-width window
+        window = grid[:, body_y_start:body_y_end, :near_x_end]
+
+        # column-projection: for each y-strip, any obstacle in forward range?
+        col_blocked = (window < obstacle_threshold).any(dim=-1).float()
+        blocked = col_blocked.mean(dim=-1)
+
+        # evasion signal: turning hard -> low penalty
+        yaw_rate = torch.abs(asset.data.root_ang_vel_b[:, 2])
+        not_evading = torch.exp(-yaw_rate / turn_std)
+
+        # gate: only when forward command exists
+        cmd = self.env.command_manager.get_command(command_name)
+        has_fwd_cmd = (cmd[:, 0] > 0.05).float()
+
+        return blocked * not_evading * has_fwd_cmd
+
+    def _reward_approach_goal(self):
+        """Reward approaching the maze exit: -(current_dist - previous_dist).
+
+        接近目标奖励：距离减少→正奖励，距离增加→负奖励。
+
+        Requires env.goal_positions to be set (auto-initialized via
+        observation_process.goal_position_in_robot_frame).
+        """
+        if not hasattr(self.env, "goal_positions") or self.env.goal_positions is None:
+            return torch.zeros(self.env.num_envs, device=self.env.device)
+
+        robot = self._get_robot_asset()
+        robot_pos = robot.data.root_pos_w[:, :2]  # (N, 2)
+        goal_pos = self.env.goal_positions[:, :2]  # (N, 2)
+
+        current_dist = torch.norm(goal_pos - robot_pos, dim=1)  # (N,)
+
+        if not hasattr(self.env, "_previous_goal_dist") or self.env._previous_goal_dist is None:
+            self.env._previous_goal_dist = current_dist.clone()
+            return torch.zeros(self.env.num_envs, device=self.env.device)
+
+        # distance change (positive = away, negative = closer)
+        delta_dist = current_dist - self.env._previous_goal_dist
+
+        # reset envs don't accumulate delta (distance jump)
+        term_mgr = self.env.termination_manager
+        reset_mask = term_mgr.terminated | term_mgr.time_outs
+        delta_dist[reset_mask] = 0.0
+
+        self.env._previous_goal_dist = current_dist.clone()
+
+        # negative delta = closer = positive reward
+        return -delta_dist
+
+    def _reward_navigation_time(self):
+        """Per-step penalty to encourage fast navigation.
+
+        每步固定惩罚，鼓励快速到达目标。返回固定值 1.0，由 weight 控制大小。
+        """
+        return torch.ones(self.env.num_envs, device=self.env.device)
+
+    def _reward_wall_proximity_brake(self, obstacle_threshold: float = -0.3):
+        """Penalize high forward speed when walls are close ahead.
+
+        前方有墙时惩罚高速前进，鼓励近墙减速。
+
+        Uses height_scan center column to detect near-field wall distance,
+        then penalizes forward velocity proportionally to proximity.
+        """
+        asset = self._get_robot_asset()
+        sensor = self.env.scene.sensors["height_scanner"]
+
+        # raw height: base_z - hit_z (negative = wall/obstacle above ground)
+        scan = sensor.data.pos_w[:, 2:3] - sensor.data.ray_hits_w[..., 2]
+        grid = scan.view(self.env.num_envs, 16, 16)
+
+        # center 4 columns (y indices 6:10), near-field (x indices :8 = 0~0.7m)
+        center_window = grid[:, 6:10, :8]
+        near_wall = (center_window < obstacle_threshold).any(dim=-1).any(dim=-1).float()
+
+        # penalize forward velocity when near wall
+        fwd_vel = torch.clamp(asset.data.root_lin_vel_b[:, 0], min=0.0)
+        return near_wall * fwd_vel
+
+    # TODO: heuristic_navigation — wall-aware blend (clear ahead → towards goal; blocked → by clearance).
+    # Requires nav_scanner and clearance analysis. See agent_diy train_env_conf_track_nav.toml for design.
+    # TODO：主导航奖励 — 根据前方通畅/堵塞切换朝目标/按 clearance 走。
+    # 需要 nav_scanner 和 clearance 分析，设计参见 agent_diy train_env_conf_track_nav.toml。
+    #
+    # def _reward_heuristic_navigation(self, obstacle_threshold: float = -0.3):
+    #     ...
+
+    # TODO: deadend_escape — reward turning when blocked ahead (nav_scanner detects L-turns 2.5m ahead).
+    # TODO：死胡同逃脱 — 前方堵死时奖励转向（nav_scanner 提前 2.5m 检测 L 型转角）。
+    #
+    # def _reward_deadend_escape(self, obstacle_threshold: float = -0.3, trapped_threshold: float = 0.3):
+    #     ...
 

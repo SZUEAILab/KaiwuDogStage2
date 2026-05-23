@@ -1,13 +1,14 @@
 # =============================================================================
-# Stair Down Training: focused training on pyramid_stairs_inv terrain only.
-# 专注训练下台阶：仅使用 pyramid_stairs_inv 地形。
+# Standard Locomotion: comprehensive locomotion training on ALL sub-terrains.
+# Standard 综合运动训练：在所有子地形上学习基本运动策略。
 #
-# Key changes vs. standard:
-# 1. Single terrain type (pyramid_stairs_inv) for focused learning
-# 2. Reduced initial difficulty level to ease learning
-# 3. Lower initial velocity commands to prevent falls
-# 4. Reduced entropy_coef for stable convergence
-# 5. Stronger stability rewards (feet_stumble, air_time)
+# Uses all 5 sub-terrain types with balanced proportions and comprehensive
+# rewards to learn robust locomotion (forward, lateral, turning, ascent, descent).
+# 使用全部 5 种子地形 + 综合奖励，学习鲁棒的基本运动策略。
+#
+# This is the starting point — after this stage the policy should walk stably
+# on all terrain types.
+# 这是训练的起点 —— 完成本阶段后策略应在所有地形上稳定行走。
 # =============================================================================
 
 # === Basic Configuration ===
@@ -17,7 +18,7 @@
 # 并行环境数量，合法范围：[1, 4096]
 num_envs = 2048
 
-# Max episode duration (seconds)
+# Max episode duration (seconds).
 # 最大 episode 时长（秒）
 episode_length_s = 25
 
@@ -58,10 +59,23 @@ curriculum = true
 max_init_terrain_level = 2
 
 
-# Focus on stairs_down only
-# 专注下楼梯
+# Sub-terrain proportions (all proportions must sum to 1.0).
+# Balanced mix: all 5 sub-terrain types for comprehensive locomotion.
+# 子地形比例（所有 proportion 之和必须 = 1.0）。
+[terrain.standard.pyramid_slope]
+proportion = 0.15
+
+[terrain.standard.pyramid_slope_inv]
+proportion = 0.2
+
+[terrain.standard.pyramid_stairs]
+proportion = 0.25
+
 [terrain.standard.pyramid_stairs_inv]
-proportion = 1.0
+proportion = 0.3
+
+[terrain.standard.maze]
+proportion = 0.1
 
 
 # === Domain Randomization ===
@@ -125,6 +139,9 @@ ang_vel_z = [-1.5, 1.5]
 [commands.ranges]
 # Velocity command **initial sampling ranges** (expand towards limit when curriculum is enabled).
 # 速度命令 **初始采样范围**（curriculum 开启时会动态扩大到 limit）
+
+# Start forward-only; curriculum expands to full limit.
+# 初始只前进；curriculum 扩展到全范围
 lin_vel_x = [0.0, 0.5]
 lin_vel_y = [-0.3, 0.3]
 ang_vel_yaw = [-1.0, 1.0]
@@ -211,35 +228,3 @@ weight = -2.0  # Stronger orientation penalty for stairs
 # --- 额外：终止惩罚 ---
 [rewards.termination]
 weight = -1.0
-
-# --- Posture: base height tracking ---
-# --- 姿态：基座高度跟踪 ---
-[rewards.correct_base_height]
-weight = -0.03
-[rewards.correct_base_height.params]
-target_height = 0.38
-margin = 0.05
-
-# --- Posture: hip joints return to default ---
-# --- 姿态：髋关节回归默认角度 ---
-[rewards.hip_to_default]
-weight = -0.05
-
-# --- Energy: torque × joint velocity ---
-# --- 能耗：扭矩 × 关节速度 ---
-[rewards.energy]
-weight = -2e-5
-
-# --- Posture: foot height in body frame ---
-# --- 姿态：脚部机体坐标系高度 ---
-[rewards.feet_height_body]
-weight = -0.03
-[rewards.feet_height_body.params]
-command_name = "base_velocity"
-target_height = -0.30
-tanh_mult = 2.0
-
-# --- Posture: 2nd-order action smoothness ---
-# --- 姿态：二阶动作平滑 ---
-[rewards.action_smoothness]
-weight = -0.01
