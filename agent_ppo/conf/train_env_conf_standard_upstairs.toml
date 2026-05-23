@@ -1,6 +1,6 @@
 # =============================================================================
-# Stair Down Training: focused training on pyramid_stairs_inv terrain only.
-# 专注训练下台阶：仅使用 pyramid_stairs_inv 地形。
+# Stair Up Training: focused training on pyramid_stairs_inv terrain only.
+# 专注训练上楼梯：仅使用 pyramid_stairs_inv 地形。
 #
 # Key changes vs. standard:
 # 1. Single terrain type (pyramid_stairs_inv) for focused learning
@@ -8,6 +8,7 @@
 # 3. Lower initial velocity commands to prevent falls
 # 4. Reduced entropy_coef for stable convergence
 # 5. Stronger stability rewards (feet_stumble, air_time)
+# 6. Symmetry rewards (feet_air_time_variance, track_lin_vel_y) to prevent lateral bias
 # =============================================================================
 
 # === Basic Configuration ===
@@ -58,8 +59,8 @@ curriculum = true
 max_init_terrain_level = 2
 
 
-# Focus on stairs_down only
-# 专注下楼梯
+# Focus on stairs_up only
+# 专注上楼梯
 [terrain.standard.pyramid_stairs_inv]
 proportion = 1.0
 
@@ -148,8 +149,16 @@ weight = 0.3
 std = 0.25
 command_name = "base_velocity"
 
-# --- Positive: forward progress (down stairs) ---
-# --- 正向：前进奖励（下台阶） ---
+# --- Positive: lateral velocity tracking (prevents side drift) ---
+# --- 正向：侧向速度追踪（抑制侧偏）---
+[rewards.track_lin_vel_y]
+weight = 0.5
+[rewards.track_lin_vel_y.params]
+std = 0.25
+command_name = "base_velocity"
+
+# --- Positive: forward progress (up stairs) ---
+# --- 正向：前进奖励（上楼梯） ---
 [rewards.forward_velocity]
 weight = 2.0
 
@@ -160,6 +169,11 @@ weight = 1.0
 [rewards.feet_air_time.params]
 threshold = 0.3
 command_name = "base_velocity"
+
+# --- Positive: gait symmetry (penalize asymmetric step timing) ---
+# --- 正向：步态对称性（惩罚不对称步态）---
+[rewards.feet_air_time_variance]
+weight = -0.3
 
 # --- Negative: base stability ---
 # --- 负向：基座稳定 ---

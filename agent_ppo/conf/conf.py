@@ -104,13 +104,13 @@ class LocomotionConfig(StageConfig):
     task_type = "standard"
 
 
-class StairsDownConfig(StageConfig):
+class UpstairsConfig(StageConfig):
     """
-    Stage: stairs_down — focused training on descending stairs (pyramid_stairs_inv).
-    阶段：stairs_down —— 专注训练下台阶（pyramid_stairs_inv）。
+    Stage: upstairs — focused training on ascending stairs (pyramid_stairs_inv).
+    阶段：upstairs —— 专注训练上楼梯（pyramid_stairs_inv）。
     """
 
-    name = "stairs_down"
+    name = "upstairs"
     task_type = "standard"
 
     # Lower learning rate for stable convergence
