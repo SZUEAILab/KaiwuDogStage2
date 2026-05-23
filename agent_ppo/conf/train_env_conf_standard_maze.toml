@@ -1,0 +1,225 @@
+# =============================================================================
+# Maze Training: focused training on maze terrain only.
+# 专注训练迷宫：仅使用 maze 地形。
+#
+# Key design:
+# 1. 100% maze terrain with curriculum from level 0
+# 2. Obstacle avoidance rewards (obstacle_evasion, wall_proximity_brake) teach
+#    active wall circumvention — not just passive collision avoidance
+# 3. Velocity tracking down-weighted so obstacle awareness dominates
+# 4. Frequent command resampling + wide yaw range for wall-encounter training
+# 5. High collision/termination costs to deter wall-rushing strategies
+#
+# 核心设计：
+# 1. 100% 迷宫地形，课程从 level 0 开始
+# 2. 避障奖励（obstacle_evasion, wall_proximity_brake）教主动绕墙
+# 3. 速度跟踪降权，让障碍感知主导训练
+# 4. 高频指令重采样 + 宽偏航范围，制造更多碰墙训练机会
+# 5. 高碰撞/终止代价，阻止冲墙策略
+# =============================================================================
+
+# === Basic Configuration ===
+# === 基础配置 ===
+[env]
+num_envs = 2048
+episode_length_s = 25
+
+[env_conf]
+seed = 0
+
+
+# === Terrain Configuration ===
+# === 地形配置 ===
+[terrain]
+mode = "standard"
+num_rows = 10
+num_cols = 20
+difficulty_range = [0.0, 1.0]
+curriculum = true
+
+# Start from the simplest maze, let curriculum advance
+# 从最简单迷宫开始，课程自动晋级
+max_init_terrain_level = 0
+
+# Focus on maze only
+# 专注迷宫
+[terrain.standard.maze]
+proportion = 1.0
+
+
+# === Domain Randomization ===
+# === 域随机化 ===
+[domain_rand]
+enable_domain_rand = true
+randomize_friction = true
+friction_range = [0.3, 1.5]
+push_robots = true
+push_interval_s = 20
+max_push_vel_xy = 0.5
+
+
+# === Observation Noise ===
+# === 观测噪声 ===
+[noise]
+add_noise = true
+
+
+# === Initial State ===
+# === 初始状态 ===
+[init_state]
+pos = [0.0, 0.0, 0.35]
+
+
+# === Velocity Commands ===
+# === 速度命令 ===
+[commands]
+# Frequent resampling — more direction changes, more wall encounters
+# 高频重采样 — 更多方向切换，制造更多碰墙训练机会
+resampling_time = [5.0, 5.0]
+
+[commands.limit]
+lin_vel_x = [-1.5, 1.5]
+lin_vel_y = [-1.0, 1.0]
+ang_vel_z = [-1.5, 1.5]
+
+[commands.ranges]
+# Wide yaw + moderate lateral — wall encounters trigger turning/backing up
+# 宽偏航 + 适度侧向 — 碰墙触发转向/后退
+lin_vel_x = [0.0, 0.5]
+lin_vel_y = [-0.5, 0.5]
+ang_vel_yaw = [-1.5, 1.5]
+
+
+# =====================================================================
+# Reward Configuration
+# =====================================================================
+
+# --- Positive: velocity tracking (down-weighted for obstacle awareness) ---
+# --- 正向：速度跟踪（降权，让障碍感知主导）---
+[rewards.track_lin_vel_xy]
+weight = 0.5
+[rewards.track_lin_vel_xy.params]
+std = 0.25
+command_name = "base_velocity"
+
+[rewards.track_ang_vel_z]
+weight = 0.3
+[rewards.track_ang_vel_z.params]
+std = 0.25
+command_name = "base_velocity"
+
+# --- Positive: forward progress (low weight — not about rushing forward) ---
+# --- 正向：前进奖励（低权重 — 非鼓励冲墙）---
+[rewards.forward_velocity]
+weight = 0.3
+
+# --- Positive: feet air time ---
+# --- 正向：脚部滞空 ---
+[rewards.feet_air_time]
+weight = 0.3
+[rewards.feet_air_time.params]
+threshold = 0.3
+command_name = "base_velocity"
+
+# --- Negative: base stability ---
+# --- 负向：基座稳定 ---
+[rewards.lin_vel_z]
+weight = -1.5
+
+[rewards.ang_vel_xy]
+weight = -0.1
+
+# --- Negative: joint smoothness ---
+# --- 负向：关节平滑 ---
+[rewards.joint_acc]
+weight = -2.5e-7
+
+[rewards.joint_torques]
+weight = -1e-4
+
+[rewards.dof_pos_limits]
+weight = -2.0
+
+# --- Negative: action smoothness ---
+# --- 负向：动作平滑 ---
+[rewards.action_rate]
+weight = -0.01
+
+# --- Negative: undesired contacts (high weight — core maze cost) ---
+# --- 负向：碰撞（高权重 — 迷宫核心代价）---
+[rewards.undesired_contacts]
+weight = -3.0
+[rewards.undesired_contacts.params]
+threshold = 1
+
+# --- Negative: feet stumble (low — flat ground, no stair edges) ---
+# --- 负向：绊脚（低权重 — 迷宫平坦无台阶边缘）---
+[rewards.feet_stumble]
+weight = -0.1
+
+# --- Negative: feet slide ---
+# --- 负向：脚部滑动 ---
+[rewards.feet_slide]
+weight = -0.5
+
+# --- Extra: anti-tipping ---
+# --- 额外：防倾倒 ---
+[rewards.flat_orientation]
+weight = -1.5
+
+# --- Extra: termination penalty (high — falling worse than collision) ---
+# --- 额外：终止惩罚（高 — 摔倒比撞墙更差）---
+[rewards.termination]
+weight = -5.0
+
+# --- Posture: base height tracking ---
+# --- 姿态：基座高度跟踪 ---
+[rewards.correct_base_height]
+weight = -1.0
+[rewards.correct_base_height.params]
+target_height = 0.38
+margin = 0.05
+
+# --- Posture: hip joints return to default ---
+# --- 姿态：髋关节回归默认角度 ---
+[rewards.hip_to_default]
+weight = -0.05
+
+# --- Energy: torque × joint velocity ---
+# --- 能耗：扭矩 × 关节速度 ---
+[rewards.energy]
+weight = -2e-5
+
+# --- Posture: foot height in body frame ---
+# --- 姿态：脚部机体坐标系高度 ---
+[rewards.feet_height_body]
+weight = -0.05
+[rewards.feet_height_body.params]
+command_name = "base_velocity"
+target_height = -0.30
+tanh_mult = 2.0
+
+# --- Posture: 2nd-order action smoothness ---
+# --- 姿态：二阶动作平滑 ---
+[rewards.action_smoothness]
+weight = -0.01
+
+# =====================================================================
+# Obstacle Avoidance (active wall circumvention)
+# 避障奖励（主动绕墙）
+# =====================================================================
+
+# Penalize not turning when blocked ahead — teaches active evasion
+# 前方被阻挡时未主动转向的惩罚 — 教会主动避让
+[rewards.obstacle_evasion]
+weight = -0.5
+[rewards.obstacle_evasion.params]
+command_name = "base_velocity"
+
+# Penalize high forward speed near walls — teaches braking/caution
+# 近墙高速惩罚 — 教会减速谨慎
+[rewards.wall_proximity_brake]
+weight = -2.0
+[rewards.wall_proximity_brake.params]
+obstacle_threshold = -0.3
+
