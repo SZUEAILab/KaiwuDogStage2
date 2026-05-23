@@ -1,0 +1,275 @@
+# =============================================================================
+# Track Hierarchical Nav: frozen locomotion + trainable navigation policy.
+# Track Hierarchical Nav: 冻结运控 + 可训练导航策略。
+#
+# Modeled after agent_diy train_env_conf_track_hier_nav.toml.
+# 参考 agent_diy train_env_conf_track_hier_nav.toml。
+#
+# Architecture:
+#   nav_obs (proprio + scan + goal) → NavActorCritic → velocity_cmd [vx, vy, wz]
+#   loco_obs (proprio + scan, cmd replaced) → frozen ActorCritic → joints [12]
+#
+# 架构：
+#   nav_obs (proprio + scan + goal) → NavActorCritic → 速度指令 [vx, vy, wz]
+#   loco_obs (proprio + scan, 替换 cmd) → 冻结的 ActorCritic → 关节动作 [12]
+#
+# Key design:
+# - Locomotion policy is FROZEN (requires pretrained checkpoint from standard stage).
+# - Nav policy outputs velocity commands, trained end-to-end with nav rewards.
+# - Joint-level rewards are REMOVED (nav can't control joints — only velocity cmd).
+# - Only nav-relevant rewards remain: velocity tracking + nav + indirect safety.
+#
+# 核心设计：
+# - 运控策略冻结（需要从 standard 阶段加载预训练 checkpoint）。
+# - 导航策略输出速度指令，通过导航奖励端到端训练。
+# - 关节级奖励全部移除（nav 只能控制速度指令，关节由运控自主处理）。
+# - 仅保留 nav 能影响的奖励：速度跟踪 + 导航 + 间接安全约束。
+#
+# Prerequisite: complete standard locomotion training first, then set
+# loco_ckpt_dir in HierTrackNavConfig to the checkpoint path.
+# 前置条件：先完成 standard 运控训练，然后在 HierTrackNavConfig 中设置
+# loco_ckpt_dir 指向 checkpoint 路径。
+# =============================================================================
+
+# === Basic Configuration ===
+# === 基础配置 ===
+[env]
+# Number of parallel environments, valid range: [1, 4096].
+# 并行环境数量，合法范围：[1, 4096]
+num_envs = 2048
+
+# Max episode duration (seconds); track course is long.
+# 最大 episode 时长（秒）；track 赛道较长。
+episode_length_s = 120
+
+[env_conf]
+# Random seed.
+# 随机种子
+seed = 0
+
+
+# === Terrain Configuration ===
+# === 地形配置 ===
+[terrain]
+# Terrain mode: track — serialized sub-terrains per lane.
+# 地形模式：track — 每条赛道串联多段子地形。
+mode = "track"
+
+# In track mode, num_rows is overridden by [terrain.track].track_length.
+# track 模式下 num_rows 会被 [terrain.track].track_length 覆盖。
+num_rows = 10
+
+# In track mode, num_cols = number of difficulty tiers (parallel lanes).
+# track 模式下 num_cols = 难度档数（并行赛道数）。
+num_cols = 10
+
+# Difficulty range [min, max], valid range: [0.0, 1.0].
+# 难度范围 [min, max]，合法范围：[0.0, 1.0]
+difficulty_range = [0.0, 1.0]
+
+# Whether to enable terrain curriculum (promote/demote difficulty by performance).
+# 是否启用地形课程学习（按表现晋级/降级难度）
+curriculum = true
+
+# Max init difficulty tier for robot placement.
+# Track mode: start from easiest tier (0).
+# 机器人初始放置的最大难度档；track 模式从最简单档开始。
+max_init_terrain_level = 0
+
+[terrain.track]
+# Number of sub-terrains per lane along X-axis, valid range: [1, 5].
+# 每条赛道串联的子地形数量（X 轴方向段数），合法范围：[1, 5]
+track_length = 5
+
+# Sub-terrain sequence: length must equal track_length, no duplicates,
+# and the LAST element must be "open_entry_maze" (track finish is always a maze).
+# 子地形序列，最后一个元素必须为 "open_entry_maze"。
+sub_terrains = ["pyramid_slope", "pyramid_slope_inv", "pyramid_stairs", "pyramid_stairs_inv", "open_entry_maze"]
+
+
+# === Domain Randomization ===
+# === 域随机化 ===
+[domain_rand]
+# Master switch for domain randomization.
+# 域随机化总开关
+enable_domain_rand = true
+
+# Whether to randomize ground friction.
+# 是否随机化地面摩擦系数
+randomize_friction = true
+
+# Friction range [min, max], must be >= 0.
+# 摩擦系数采样范围 [min, max]，必须 >= 0
+friction_range = [0.3, 1.5]
+
+# Whether to periodically push the robot.
+# 是否周期性对机器人施加外部推力
+push_robots = true
+
+# Push interval (seconds), must be > 0.
+# 推力间隔（秒），必须 > 0
+push_interval_s = 15
+
+# Max push velocity in XY plane (m/s), must be >= 0.
+# XY 平面最大推力速度 (m/s)，必须 >= 0
+max_push_vel_xy = 0.5
+
+
+# === Observation Noise ===
+# === 观测噪声 ===
+[noise]
+# Whether to add noise to observations.
+# 是否在观测中加入噪声
+add_noise = true
+
+
+# === Initial State ===
+# === 初始状态 ===
+[init_state]
+# Robot initial position [x, y, z] (m); z valid range [0.30, 0.60]m, recommended 0.35m.
+# 机器人初始位置 [x, y, z] (m)；z 合法范围：[0.30, 0.60]m，推荐 0.35m
+pos = [0.0, 0.0, 0.35]
+
+
+# === Velocity Commands: tuned for maze nav (slow & safe traversal) ===
+# === 速度命令：迷宫导航专用，低速安全通行 ===
+[commands]
+# Velocity command resampling interval [min, max] (seconds).
+# 速度命令重采样区间 [min, max]（秒）
+resampling_time = [5.0, 5.0]
+
+[commands.limit]
+# Velocity command **hard limits** (curriculum may expand sampling range up to here).
+# 速度命令 **采样上限**（硬约束，curriculum 最多扩展到该范围）
+
+# Low speed for mazes.
+# 迷宫低速
+lin_vel_x = [0.0, 0.8]
+
+# Narrowed lateral.
+# 收窄侧向
+lin_vel_y = [-0.3, 0.3]
+
+# Wide for wall circumvention.
+# 绕墙需要
+ang_vel_z = [-1.5, 1.5]
+
+[commands.ranges]
+# Velocity command **initial sampling ranges** (expand towards limit when curriculum is enabled).
+# 速度命令 **初始采样范围**（curriculum 开启时会动态扩大到 limit）
+
+lin_vel_x = [0.0, 0.5]
+lin_vel_y = [-0.15, 0.15]
+ang_vel_yaw = [-1.0, 1.0]
+
+
+# =====================================================================
+# Reward Configuration: nav-only rewards
+# 奖励配置：仅 nav 相关奖励
+#
+# Joint-level rewards (joint_acc, energy, flat_orientation, feet_stumble,
+# correct_base_height, hip_to_default, feet_height_body, action_rate,
+# action_smoothness, joint_torques, dof_pos_limits, lin_vel_z, ang_vel_xy,
+# joint_vel, joint_position_penalty, feet_air_time, feet_slide, etc.) are
+# REMOVED because nav outputs only [vx, vy, wz] (3D) and cannot control
+# joint-level behavior. Those are handled by the frozen locomotion policy.
+# Keeping them would only add noise to the nav training signal.
+#
+# 关节级奖励全部移除：nav 只输出 [vx, vy, wz] 3D，无法控制关节行为。
+# 那些由冻结的运控策略自主处理。保留它们只会给 nav 训练引入噪声。
+#
+# Remaining rewards fall into 3 categories:
+# 1. Velocity tracking — nav can influence via vx/vy/wz output
+# 2. Navigation — direct nav objective (approach, reach, avoid)
+# 3. Indirect safety — consequences of nav's commands (collision, fall)
+#
+# 保留的奖励分 3 类：
+# 1. 速度跟踪 — nav 通过 vx/vy/wz 输出可影响
+# 2. 导航 — nav 的直接目标（接近、到达、避障）
+# 3. 间接安全约束 — nav 输出指令的后果（撞墙、摔倒）
+# =====================================================================
+
+# --- Velocity tracking (nav can influence via velocity cmd) ---
+# --- 速度跟踪（nav 通过速度指令可影响）---
+[rewards.track_lin_vel_xy]
+weight = 0.10
+[rewards.track_lin_vel_xy.params]
+std = 0.25
+command_name = "base_velocity"
+
+[rewards.track_ang_vel_z]
+weight = 0.05
+[rewards.track_ang_vel_z.params]
+std = 0.25
+command_name = "base_velocity"
+
+
+# =====================================================================
+# Navigation rewards (nav's direct objective)
+# 导航奖励（nav 的直接目标）
+# =====================================================================
+
+# Heuristic navigation: wall-aware blend — forward velocity when clear,
+# clearance-guided turn when blocked. Primary continuous nav signal.
+# 主导航奖励：墙体感知混合 — 通畅时前进，堵塞时向 clearance 侧转向。
+[rewards.heuristic_navigation]
+weight = 8.0
+[rewards.heuristic_navigation.params]
+obstacle_threshold = -0.3
+
+# Dense approach reward: distance reduction → positive.
+# 密集接近奖励：距离减少 → 正奖励。
+[rewards.approach_goal]
+weight = 2.0
+
+# Reach-goal: one-shot large reward when distance < threshold.
+# 到达目标：距离 < threshold 时一次性大奖。
+[rewards.reach_goal]
+weight = 20.0
+[rewards.reach_goal.params]
+threshold = 0.6
+
+# Dead-end escape: reward high angular velocity when trapped on 3 sides.
+# 死胡同逃脱：三面被堵时奖励高角速度转向。
+[rewards.deadend_escape]
+weight = 3.0
+[rewards.deadend_escape.params]
+obstacle_threshold = -0.3
+trapped_threshold = 0.3
+
+# Navigation time penalty (constant per-step, encourages fast arrival).
+# 导航时间惩罚（每步固定扣分，鼓励快速到达）。
+[rewards.navigation_time]
+weight = -0.005
+
+# Obstacle evasion: penalize not turning when blocked ahead (nav can output wz).
+# 避障：前方被障碍阻挡时未主动转向的惩罚（nav 可以输出 wz）。
+[rewards.obstacle_evasion]
+weight = -0.5
+[rewards.obstacle_evasion.params]
+command_name = "base_velocity"
+
+
+# =====================================================================
+# Indirect safety constraints (feedback from dangerous nav commands)
+# 间接安全约束（nav 输出危险 cmd 的后果反馈）
+# =====================================================================
+
+# Wall-proximity brake: penalize high forward speed near walls (nav can reduce vx).
+# 近墙减速：前方有墙时惩罚高速前冲（nav 可以降低 vx）。
+[rewards.wall_proximity_brake]
+weight = -1.0
+[rewards.wall_proximity_brake.params]
+obstacle_threshold = -0.3
+
+# Wall crash: nav rushes to wall → contact → penalize nav for charging walls.
+# 撞墙：nav 冲墙 → 碰撞 → 惩罚 nav 别往墙冲。
+[rewards.undesired_contacts]
+weight = -3.0
+[rewards.undesired_contacts.params]
+threshold = 1
+
+# Fall-to-death: nav issues dangerous cmd → fall termination → penalize reckless nav.
+# 摔死：nav 输出危险 cmd → 摔倒终止 → 惩罚 nav 别作死。
+[rewards.termination]
+weight = -15.0

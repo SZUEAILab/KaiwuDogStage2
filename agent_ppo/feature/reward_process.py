@@ -117,11 +117,14 @@ class RewardProcess(RewardProcessBase):
         )
 
     def _reward_termination(self):
-        """Penalize real failures (terminated AND NOT timed-out).
-        惩罚真正的失败（被终止且非超时截断）。
+        """Penalize real failures (terminated AND NOT timed-out AND NOT goal-reached).
+        惩罚真正的失败（被终止且非超时截断且非到达目标）。
         """
         term_mgr = self.env.termination_manager
         failure = term_mgr.terminated & ~term_mgr.time_outs
+        if "goal_reached" in term_mgr.active_terms:
+            goal_done = term_mgr.get_term("goal_reached")
+            failure = failure & ~goal_done
         return failure.float()
 
     def _reward_reach_goal(self, threshold: float = 0.6):
@@ -321,17 +324,84 @@ class RewardProcess(RewardProcessBase):
         fwd_vel = torch.clamp(asset.data.root_lin_vel_b[:, 0], min=0.0)
         return near_wall * fwd_vel
 
-    # TODO: heuristic_navigation — wall-aware blend (clear ahead → towards goal; blocked → by clearance).
-    # Requires nav_scanner and clearance analysis. See agent_diy train_env_conf_track_nav.toml for design.
-    # TODO：主导航奖励 — 根据前方通畅/堵塞切换朝目标/按 clearance 走。
-    # 需要 nav_scanner 和 clearance 分析，设计参见 agent_diy train_env_conf_track_nav.toml。
-    #
-    # def _reward_heuristic_navigation(self, obstacle_threshold: float = -0.3):
-    #     ...
+    def _get_scan_grid(self):
+        """Get height_scanner data as 16x16 grid.
 
-    # TODO: deadend_escape — reward turning when blocked ahead (nav_scanner detects L-turns 2.5m ahead).
-    # TODO：死胡同逃脱 — 前方堵死时奖励转向（nav_scanner 提前 2.5m 检测 L 型转角）。
-    #
-    # def _reward_deadend_escape(self, obstacle_threshold: float = -0.3, trapped_threshold: float = 0.3):
-    #     ...
+        获取 height_scanner 16x16 网格数据。
+        """
+        sensor = self.env.scene.sensors["height_scanner"]
+        scan = sensor.data.pos_w[:, 2:3] - sensor.data.ray_hits_w[..., 2]
+        return scan.view(self.env.num_envs, 16, 16)
+
+    def _get_far_field_blocked(self, obstacle_threshold: float = -0.3):
+        """Use nav_scanner for longer-range forward obstacle detection.
+
+        使用 nav_scanner 进行远距离前方障碍物检测（~2.5m vs height_scanner 的 1.5m）。
+        Returns (N,) float: 0.0 = far field clear, 1.0 = far field blocked.
+        """
+        if "nav_scanner" not in self.env.scene.sensors:
+            return torch.zeros(self.env.num_envs, device=self.env.device)
+        sensor = self.env.scene.sensors["nav_scanner"]
+        origins_z = sensor.data.pos_w[:, 2:3]
+        hits_z = sensor.data.ray_hits_w[..., 2]
+        scan = origins_z - hits_z
+        return (scan < obstacle_threshold).any(dim=-1).float()
+
+    def _reward_heuristic_navigation(self, obstacle_threshold: float = -0.3):
+        """Wall-aware navigation: forward velocity when clear, clearance-guided turn when blocked.
+
+        墙体感知导航奖励：通畅时奖励前进，堵塞时奖励向 clearance 更大侧转向。
+
+        Uses height_scanner 16x16 grid for near-field (0~1.0m) clearance analysis,
+        supplemented by nav_scanner for far-field (~2.5m) early-warning detection.
+        """
+        asset = self._get_robot_asset()
+        grid = self._get_scan_grid()
+        far_blocked = self._get_far_field_blocked(obstacle_threshold)
+
+        near_x = 10  # forward range: 0~1.0m (x indices 0..9)
+
+        left_region = grid[:, 0:8, :near_x]
+        right_region = grid[:, 8:16, :near_x]
+        front_center = grid[:, 5:11, :near_x]
+
+        left_clear = (left_region > obstacle_threshold).float().mean(dim=(1, 2))
+        right_clear = (right_region > obstacle_threshold).float().mean(dim=(1, 2))
+        near_blocked_frac = (front_center < obstacle_threshold).float().mean(dim=(1, 2))
+
+        # Blend near and far: far-blocked early warning biases toward turning
+        front_blocked_frac = torch.max(near_blocked_frac, far_blocked * 0.7)
+
+        side_preference = left_clear - right_clear  # + = left more open
+
+        fwd_vel = torch.clamp(asset.data.root_lin_vel_b[:, 0], min=0.0)
+        forward_ok = (1.0 - front_blocked_frac).clamp(min=0.0)
+        fwd_reward = fwd_vel * forward_ok
+
+        yaw_rate = asset.data.root_ang_vel_b[:, 2]
+        turn_reward = torch.tanh(yaw_rate * side_preference * 2.0)
+
+        return (1.0 - front_blocked_frac) * fwd_reward + front_blocked_frac * turn_reward
+
+    def _reward_deadend_escape(self, obstacle_threshold: float = -0.3, trapped_threshold: float = 0.3):
+        """Reward high angular velocity when trapped on left, front, and right.
+
+        死胡同逃脱：三面被堵时奖励高角速度转向。
+
+        Uses height_scanner for near-field trapped detection, supplemented by
+        nav_scanner for far-field confirmation (avoid false positives).
+        """
+        asset = self._get_robot_asset()
+        grid = self._get_scan_grid()
+        far_blocked = self._get_far_field_blocked(obstacle_threshold)
+
+        left_blocked = (grid[:, 0:5, 0:10] < obstacle_threshold).float().mean(dim=(1, 2)) > trapped_threshold
+        front_blocked = (grid[:, 5:11, 0:8] < obstacle_threshold).float().mean(dim=(1, 2)) > trapped_threshold
+        right_blocked = (grid[:, 11:16, 0:10] < obstacle_threshold).float().mean(dim=(1, 2)) > trapped_threshold
+
+        # Far-field blocked confirms this isn't a sensor glitch
+        is_trapped = (left_blocked & front_blocked & right_blocked & (far_blocked > 0.5)).float()
+
+        yaw_rate_mag = torch.abs(asset.data.root_ang_vel_b[:, 2])
+        return is_trapped * torch.clamp(yaw_rate_mag, max=1.5)
 

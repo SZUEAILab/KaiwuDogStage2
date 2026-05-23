@@ -221,11 +221,14 @@ class AlgorithmPPO:
             tuple: (mean_surrogate_loss, mean_value_loss, mean_entropy_loss)
             返回值：(平均替代损失, 平均价值损失, 平均熵损失)
         """
-        # Initialize loss accumulators
-        # 初始化损失累加器
+        # Initialize accumulators
+        # 初始化累加器
         mean_value_loss = 0
         mean_surrogate_loss = 0
         mean_entropy_loss = 0
+        mean_kl = 0
+        mean_grad_norm = 0
+        kl_updates = 0
 
         # Get mini-batch generator
         # 获取mini-batch生成器
@@ -273,9 +276,12 @@ class AlgorithmPPO:
             mu_batch = self.actor_critic.action_mean
             sigma_batch = self.actor_critic.action_std
 
-            # Adaptive learning rate
-            # 自适应学习率
-            self._update_learning_rate(mu_batch, sigma_batch, old_mu_batch, old_sigma_batch)
+            # Adaptive learning rate (captures KL for reporting)
+            # 自适应学习率（捕获 KL 用于上报）
+            kl_val = self._update_learning_rate(mu_batch, sigma_batch, old_mu_batch, old_sigma_batch)
+            if kl_val is not None:
+                mean_kl += kl_val
+                kl_updates += 1
 
             # Compute losses
             # 计算损失
@@ -321,7 +327,9 @@ class AlgorithmPPO:
                 self.optimizer.zero_grad()
                 continue
 
-            nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
+            grad_norm = nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
+            if grad_norm is not None and torch.isfinite(grad_norm):
+                mean_grad_norm += grad_norm.item() if isinstance(grad_norm, torch.Tensor) else grad_norm
             self.optimizer.step()
 
             # Clamp action std: replace NaN/Inf, then enforce [min_std, 1e6]
@@ -345,16 +353,18 @@ class AlgorithmPPO:
             mean_value_loss += vl if not (vl != vl) else 0.0
             mean_entropy_loss += el if not (el != el) else 0.0
 
-        # Average losses
-        # 平均损失
+        # Average losses and diagnostics
+        # 平均损失和诊断指标
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
         mean_surrogate_loss /= num_updates
         mean_entropy_loss /= num_updates
+        mean_kl = (mean_kl / kl_updates) if kl_updates > 0 else 0.0
+        mean_grad_norm /= num_updates
 
         # Report metrics
         # 上报指标
-        self._report_training_metrics(mean_surrogate_loss, mean_value_loss, mean_entropy_loss)
+        self._report_training_metrics(mean_surrogate_loss, mean_value_loss, mean_entropy_loss, mean_kl, mean_grad_norm)
 
         self.train_step += 1
         return mean_surrogate_loss, mean_value_loss, mean_entropy_loss
@@ -367,11 +377,12 @@ class AlgorithmPPO:
         old_sigma_batch: torch.Tensor,
     ):
         """
-        Adaptively update learning rate based on KL divergence
-        基于KL散度自适应更新学习率
+        Adaptively update learning rate based on KL divergence.
+        Returns kl_mean for reporting.
+        基于KL散度自适应更新学习率。返回 kl_mean 用于上报。
         """
         if self.desired_kl is None or self.schedule != "adaptive":
-            return
+            return None
 
         with torch.inference_mode():
             kl = torch.sum(
@@ -390,6 +401,8 @@ class AlgorithmPPO:
 
             for param_group in self.optimizer.param_groups:
                 param_group["lr"] = self.learning_rate
+
+            return kl_mean.item()
 
     def _compute_surrogate_loss(
         self,
@@ -441,6 +454,8 @@ class AlgorithmPPO:
         mean_surrogate_loss: float,
         mean_value_loss: float,
         mean_entropy_loss: float,
+        mean_kl: float = 0.0,
+        mean_grad_norm: float = 0.0,
     ):
         """
         Report training metrics to monitor
@@ -454,6 +469,8 @@ class AlgorithmPPO:
                 "entropy_loss": mean_entropy_loss,
                 "total_loss": mean_surrogate_loss + mean_value_loss + mean_entropy_loss,
                 "learning_rate": self.learning_rate,
+                "kl_divergence": mean_kl,
+                "grad_norm": mean_grad_norm,
             }
             if self.monitor:
                 self.monitor.put_data({os.getpid(): monitor_data})

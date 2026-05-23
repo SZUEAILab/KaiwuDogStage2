@@ -42,7 +42,11 @@ def _initialize_training_state(env, agent, logger):
 
     # Set model to training mode
     # 设置模型为训练模式
-    agent.algorithm.actor_critic.train()
+    if getattr(agent, "is_hierarchical", False):
+        agent.nav_model.train()
+        agent.loco_model.eval()
+    else:
+        agent.algorithm.actor_critic.train()
 
     # Initialize buffers and statistics
     # 初始化缓冲区和统计信息
@@ -125,6 +129,8 @@ def workflow(envs, agents, logger=None, monitor=None, *args, **kwargs):
 
         # Phase 1: Data Collection
         # 阶段1：数据收集
+        if getattr(agent, "is_hierarchical", False):
+            agent.reset_nav_decimation()
         last_obs, last_critic_obs, storage_stats = run_episodes_(
             env,
             agent,
@@ -158,7 +164,7 @@ def workflow(envs, agents, logger=None, monitor=None, *args, **kwargs):
         # 阶段3：监控指标处理
         now = time.time()
         if now - last_report_monitor_time >= 60:
-            report_monitor_data(ep_infos, reward_keys, agent, monitor, episode, storage_stats)
+            report_monitor_data(ep_infos, reward_keys, agent, monitor, episode, storage_stats, lenbuffer)
             last_report_monitor_time = now
 
         ep_infos.clear()
@@ -211,7 +217,7 @@ def _collect_episode_metrics(ep_infos, reward_keys, device):
     return _aggregate_metrics(generic_metrics)
 
 
-def report_monitor_data(ep_infos, reward_keys, agent, monitor, episode, storage_stats=None):
+def report_monitor_data(ep_infos, reward_keys, agent, monitor, episode, storage_stats=None, lenbuffer=None):
     """
     Report monitoring data to monitor system.
     上报监控数据到监控系统。
@@ -226,6 +232,13 @@ def report_monitor_data(ep_infos, reward_keys, agent, monitor, episode, storage_
         metrics = _collect_episode_metrics(ep_infos, reward_keys, agent.device)
         monitor_data.update(metrics)
         monitor_data["episode_reward"] = sum(monitor_data.get(key, 0) for key in reward_keys)
+
+    if lenbuffer and len(lenbuffer) > 0:
+        import numpy as np
+        lengths = np.array(lenbuffer)
+        monitor_data["episode_len_mean"] = float(np.mean(lengths))
+        monitor_data["episode_len_max"] = float(np.max(lengths))
+        monitor_data["episode_len_min"] = float(np.min(lengths))
 
     monitor.put_data({os.getpid(): monitor_data})
 
@@ -337,9 +350,15 @@ def _compute_advantages_and_returns(storage, agent, critic_obs, logger):
     """
     Compute advantage function and returns.
     计算优势函数和回报。
+
+    Hierarchical mode: uses nav_model for bootstrap values.
+    Flat mode: uses actor_critic for bootstrap values.
     """
     last_critic_obs = torch.clone(critic_obs)
-    last_values = agent.algorithm.actor_critic.evaluate(last_critic_obs.detach()).detach()
+    if getattr(agent, "is_hierarchical", False):
+        last_values = agent.nav_model.evaluate(last_critic_obs.detach()).detach()
+    else:
+        last_values = agent.algorithm.actor_critic.evaluate(last_critic_obs.detach()).detach()
     storage.compute_returns(last_values, agent.algorithm.gamma, agent.algorithm.lam)
 
     storage_stats = {
@@ -375,9 +394,7 @@ def run_episodes_(
     transition = RolloutStorage.Transition()
     obs, critic_obs = last_obs, last_critic_obs
 
-    # TODO: for hierarchical training, handle the mismatch between env action and
-    # PPO storage action on your own.
-    # TODO：如需分层训练，自行处理 env action 与 PPO storage action 不一致的问题。
+    is_hier = getattr(agent, "is_hierarchical", False)
 
     # Policy execution loop
     # 策略执行循环
@@ -396,8 +413,17 @@ def run_episodes_(
                 action_sigma,
                 detach_obs,
                 detach_critic_obs,
+                nav_actions,
             ) = predict_result
             joint_actions = actions
+
+            # Hierarchical mode: actions[0] = joint_actions (12D) for env.step(),
+            # nav_actions (3D velocity cmd) for storage.
+            # Flat mode: actions = joint_actions (12D) for both, nav_actions=None.
+            # 层级模式：actions[0] = joint_actions (12D) → env.step()，
+            # nav_actions (3D 速度指令) → storage。
+            # 扁平模式：actions = joint_actions (12D) 用于两者，nav_actions=None。
+            storage_actions = nav_actions if (is_hier and nav_actions is not None) else actions
 
             # Clip joint actions for env
             # 裁剪关节动作
@@ -431,7 +457,7 @@ def run_episodes_(
             # 每步写入 storage（扁平 PPO）
             _update_transition_data(
                 transition,
-                actions,
+                storage_actions,
                 values,
                 actions_log_prob,
                 action_mean,

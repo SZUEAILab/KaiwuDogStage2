@@ -41,6 +41,8 @@ class StageConfig:
     num_proprio_obs = 45  # proprioceptive obs dim / 本体感知观测维度
     num_scan = 256  # 16x16 height-scan dim / 16x16 高度扫描维度
     num_critic_observations = 316  # proprio(45) + scan(256) + privileged(15)
+    num_goal_obs = 0  # standard locomotion has no goal; track stages override with 4
+    num_nav_scan = 0  # nav_scanner rays (track mode, wider range); set >0 to append to obs
 
     # --- Model architecture
     # 模型架构 ---
@@ -154,6 +156,20 @@ class AllTerrainConfig(StageConfig):
     min_normalized_std = [0.05, 0.02, 0.05] * 4
 
 
+class MazeConfig(StageConfig):
+    """
+    Stage: maze — focused training on maze terrain only.
+    阶段：maze —— 专注训练迷宫地形。
+
+    Maze is flat terrain with wall obstacles — the focus is on learning
+    to turn and navigate around walls, not on slopes or stairs.
+    迷宫为带墙壁障碍的平坦地形，重点学习绕墙转向而非坡道台阶。
+    """
+
+    name = "maze"
+    task_type = "standard"
+
+
 class TrackNavConfig(StageConfig):
     """
     Stage: nav — track-terrain navigation training (end-to-end).
@@ -194,6 +210,55 @@ class TrackNavConfig(StageConfig):
     min_normalized_std = [0.08, 0.03, 0.08] * 4
 
 
+class HierTrackNavConfig(StageConfig):
+    """
+    Stage: hier_nav — hierarchical nav (frozen locomotion + trainable nav).
+    阶段：hier_nav —— 层级式导航（冻结运控 + 可训练导航策略）。
+
+    Nav policy outputs 3D velocity commands [vx, vy, wz]; frozen locomotion
+    policy converts them to 12-DOF joint actions.
+    导航策略输出 3D 速度指令 [vx, vy, wz]；冻结的运控策略将其转为 12-DOF
+    关节动作。仅训练导航策略，运控参数不更新。
+
+    Requires a pretrained locomotion checkpoint from a prior standard stage.
+    需要从 prior standard 阶段获取预训练运控 checkpoint。
+    """
+
+    name = "hier_nav"
+    task_type = "track"
+    model_class = "NavActorCritic"
+
+    # Nav model: 3D velocity command output
+    # 导航模型：输出 3D 速度指令
+    num_actions = 3
+    num_goal_obs = 4
+    num_critic_observations = 320  # critic_base(316) + goal(4)
+
+    # Nav model — smaller than loco (high-level decision)
+    # 导航模型 — 比运控小（高层决策）
+    actor_hidden_dims = [256, 128, 64]
+    critic_hidden_dims = [256, 128, 64]
+
+    # Velocity command indices in proprio observation [start, end)
+    # 速度指令在 proprio 观测中的索引 [start, end)
+    cmd_indices = (9, 12)
+
+    # Lower learning rate for stable nav training
+    lr = 1e-4
+
+    # Longer rollout for track terrain
+    num_steps_per_env = 64
+
+    # Fewer epochs to prevent overfitting
+    num_learning_epochs = 3
+
+    # Larger mini-batches for stable updates
+    num_mini_batches = 8
+
+    # Preserve exploration for navigation
+    min_normalized_std = [0.15, 0.08, 0.25]  # [vx, vy, wz]
+
+
 class Config:
     """
     Unified config entry point.
@@ -208,7 +273,7 @@ class Config:
 
     # Switch stage by changing CURRENT
     # 通过修改 CURRENT 切换阶段
-    CURRENT = StairsDownConfig
+    CURRENT = HierTrackNavConfig
 
     @staticmethod
     def load_conf(logger):
