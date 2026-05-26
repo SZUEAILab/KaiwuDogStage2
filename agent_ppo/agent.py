@@ -52,13 +52,14 @@ class Agent(BaseAgent):
         num_proprio = stage.num_proprio_obs
         num_scan = stage.num_scan
 
-        nav_scan_dim = getattr(stage, "num_nav_scan", 0)
-        num_goal_obs = getattr(stage, "num_goal_obs", 0)
+        self.nav_scan_dim = getattr(stage, "num_nav_scan", 0)
+        self.num_goal_obs = getattr(stage, "num_goal_obs", 0)
+        self.num_yaw_obs = getattr(stage, "num_yaw_obs", 0)
 
-        # policy obs = proprio + scan + goal (+ optional nav_scan)
-        # 策略观测 = 本体感知 + 扫描 + goal（+ 可选 nav_scan）
-        self.num_obs = num_proprio + num_scan + num_goal_obs + nav_scan_dim
-        self.num_critic_obs = stage.num_critic_observations + nav_scan_dim
+        # policy obs = proprio + scan + goal + yaw (+ optional nav_scan)
+        # 策略观测 = 本体感知 + 扫描 + goal + yaw（+ 可选 nav_scan）
+        self.num_obs = num_proprio + num_scan + self.num_goal_obs + self.num_yaw_obs + self.nav_scan_dim
+        self.num_critic_obs = stage.num_critic_observations + self.num_goal_obs + self.num_yaw_obs + self.nav_scan_dim
 
         if stage.model_class == "NavActorCritic":
             self._init_hier(num_proprio, num_scan, stage, usr_conf)
@@ -117,15 +118,15 @@ class Agent(BaseAgent):
         Initialize hierarchical architecture: frozen loco + trainable nav.
         初始化层级架构：冻结运控 + 可训练导航。
         """
-        # Nav observation includes goal info (appended by observation processor in track mode).
-        # 导航观测包含 goal 信息（track 模式下由 observation processor 拼接）。
-        num_nav_obs = num_proprio + num_scan + stage.num_goal_obs
+        # Nav observation includes goal + yaw info (appended by observation processor).
+        # 导航观测包含 goal + yaw 信息（由 observation processor 拼接）。
+        num_nav_obs = num_proprio + num_scan + self.num_goal_obs + self.num_yaw_obs + self.nav_scan_dim
 
         # Nav model: outputs 3D velocity commands
         # 导航模型：输出 3D 速度指令
         self.nav_model = NavActorCritic(
             num_obs=num_nav_obs,
-            num_critic_obs=stage.num_critic_observations,
+            num_critic_obs=stage.num_critic_observations + self.num_goal_obs + self.num_yaw_obs + self.nav_scan_dim,
             num_actions=stage.num_actions,
             actor_hidden_dims=stage.actor_hidden_dims,
             critic_hidden_dims=stage.critic_hidden_dims,

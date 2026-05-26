@@ -39,9 +39,11 @@ class StageConfig:
     # 由 Isaac Lab 任务定义与网络结构决定，用户不应修改；也不应放进用户 TOML。
     num_actions = 12  # Go2 joint action dim / Go2 关节动作维度
     num_proprio_obs = 45  # proprioceptive obs dim / 本体感知观测维度
+    num_nav_proprio = 6  # nav actor body: base_ang_vel(3) + projected_gravity(3), no cmd
     num_scan = 256  # 16x16 height-scan dim / 16x16 高度扫描维度
     num_critic_observations = 316  # proprio(45) + scan(256) + privileged(15)
     num_goal_obs = 0  # standard locomotion has no goal; track stages override with 4
+    num_yaw_obs = 0  # world-frame yaw for world-frame reward; e2e stages override with 2
     num_nav_scan = 0  # nav_scanner rays (track mode, wider range); set >0 to append to obs
 
     # --- Model architecture
@@ -129,6 +131,28 @@ class UpstairsConfig(StageConfig):
     min_normalized_std = [0.1, 0.05, 0.1] * 4
 
 
+class UpstairsE2EConfig(StageConfig):
+    """
+    Stage: upstairs_e2e — end-to-end forward locomotion on stairs (no command tracking).
+    阶段：upstairs_e2e —— 端到端楼梯前向运动（无指令跟踪）。
+
+    Policy learns to walk forward on stairs without velocity commands.
+    Primary reward is world-frame x-velocity.
+    策略直接学习在楼梯上前进，无速度指令。
+    """
+
+    name = "upstairs_e2e"
+    task_type = "standard"
+
+    num_yaw_obs = 2
+
+    lr = 1e-4
+    num_steps_per_env = 64
+    num_learning_epochs = 3
+    num_mini_batches = 8
+    min_normalized_std = [0.1, 0.05, 0.1] * 4
+
+
 class AllTerrainConfig(StageConfig):
     """
     Stage: all_terrain — comprehensive locomotion training on all sub-terrains.
@@ -156,14 +180,16 @@ class AllTerrainConfig(StageConfig):
     min_normalized_std = [0.05, 0.02, 0.05] * 4
 
 
-class MazeConfig(StageConfig):
+class StandardMazeConfig(StageConfig):
     """
-    Stage: maze — focused training on maze terrain only.
-    阶段：maze —— 专注训练迷宫地形。
+    Stage: maze — focused maze-terrain locomotion training (standard mode).
+    阶段：maze —— 专注迷宫地形运动训练（standard 模式）。
 
-    Maze is flat terrain with wall obstacles — the focus is on learning
-    to turn and navigate around walls, not on slopes or stairs.
-    迷宫为带墙壁障碍的平坦地形，重点学习绕墙转向而非坡道台阶。
+    100% maze terrain with obstacle-awareness rewards (obstacle_evasion,
+    wall_proximity_brake) to teach active wall circumvention.
+    Curriculum disabled so training focuses on maze-specific skills.
+    100% 迷宫地形 + 避障奖励（obstacle_evasion, wall_proximity_brake），
+    教主动绕墙。关闭 curriculum 让训练专注迷宫特有技能。
     """
 
     name = "maze"
@@ -192,7 +218,6 @@ class TrackNavConfig(StageConfig):
     # Navigation-relevant observation: adds 4D goal (robot-frame xyz + distance)
     # 导航相关观测：增加 4 维 goal（机器人坐标系 xyz + 距离）
     num_goal_obs = 4
-    num_critic_observations = 320  # critic_base(316) + goal(4)
 
     # Lower learning rate for stable policy adaptation
     lr = 1e-4
@@ -210,7 +235,7 @@ class TrackNavConfig(StageConfig):
     min_normalized_std = [0.08, 0.03, 0.08] * 4
 
 
-class HierTrackNavConfig(StageConfig):
+class TrackHierNavConfig(StageConfig):
     """
     Stage: hier_nav — hierarchical nav (frozen locomotion + trainable nav).
     阶段：hier_nav —— 层级式导航（冻结运控 + 可训练导航策略）。
@@ -232,7 +257,6 @@ class HierTrackNavConfig(StageConfig):
     # 导航模型：输出 3D 速度指令
     num_actions = 3
     num_goal_obs = 4
-    num_critic_observations = 320  # critic_base(316) + goal(4)
 
     # Nav model — smaller than loco (high-level decision)
     # 导航模型 — 比运控小（高层决策）
@@ -259,6 +283,57 @@ class HierTrackNavConfig(StageConfig):
     min_normalized_std = [0.15, 0.08, 0.25]  # [vx, vy, wz]
 
 
+class TrackNavMazeConfig(StageConfig):
+    """
+    Stage: nav_maze — track-mode nav training on maze-only terrain.
+    阶段：nav_maze —— track 模式纯迷宫地形导航训练。
+
+    Uses only open_entry_maze sub-terrain (track_length=1) for focused
+    maze navigation training.
+    仅用 open_entry_maze 子地形专注迷宫导航。
+    """
+
+    name = "nav_maze"
+    task_type = "track"
+
+    num_goal_obs = 4
+
+    lr = 1e-4
+    num_steps_per_env = 64
+    num_learning_epochs = 3
+    num_mini_batches = 8
+    min_normalized_std = [0.08, 0.03, 0.08] * 4
+
+
+class TrackHierNavMazeConfig(StageConfig):
+    """
+    Stage: hier_nav_maze — hierarchical nav on maze-only terrain.
+    阶段：hier_nav_maze —— 层级式导航（纯迷宫）。
+
+    Uses only open_entry_maze sub-terrain (track_length=1) for focused
+    maze navigation training.
+    仅用 open_entry_maze 子地形专注迷宫导航。
+    """
+
+    name = "hier_nav_maze"
+    task_type = "track"
+    model_class = "NavActorCritic"
+
+    num_actions = 3
+    num_goal_obs = 4
+
+    actor_hidden_dims = [256, 128, 64]
+    critic_hidden_dims = [256, 128, 64]
+
+    cmd_indices = (9, 12)
+
+    lr = 1e-4
+    num_steps_per_env = 64
+    num_learning_epochs = 3
+    num_mini_batches = 8
+    min_normalized_std = [0.15, 0.08, 0.25]
+
+
 class Config:
     """
     Unified config entry point.
@@ -273,7 +348,7 @@ class Config:
 
     # Switch stage by changing CURRENT
     # 通过修改 CURRENT 切换阶段
-    CURRENT = HierTrackNavConfig
+    CURRENT = TrackHierNavMazeConfig
 
     @staticmethod
     def load_conf(logger):

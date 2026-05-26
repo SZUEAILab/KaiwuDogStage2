@@ -83,6 +83,26 @@ class PolicyObservationProcess(ObservationProcess):
 
         return torch.stack([dx, dy, dz, dyaw], dim=-1)
 
+    def _get_num_yaw_obs(self):
+        """Read yaw obs dimension from stage config.
+        从 stage config 读取 yaw obs 维度。
+        """
+        from agent_ppo.conf.conf import Config
+        return getattr(Config.CURRENT, "num_yaw_obs", 0)
+
+    def world_yaw_observation(self):
+        """Compute sin and cos of robot world-frame yaw angle.
+        计算机器人世界坐标系偏航角的 sin 和 cos。
+
+        Returns:
+            torch.Tensor: shape (num_envs, 2) — [sin(yaw), cos(yaw)]
+        """
+        robot = self.env.scene["robot"]
+        quat = robot.data.root_quat_w
+        w, x, y, z = quat[:, 0], quat[:, 1], quat[:, 2], quat[:, 3]
+        yaw = torch.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+        return torch.stack([torch.sin(yaw), torch.cos(yaw)], dim=-1)
+
     def _get_num_nav_scan(self):
         """Read nav_scanner ray count from stage config.
         从 stage config 读取 nav_scanner 射线数量。
@@ -116,6 +136,10 @@ class PolicyObservationProcess(ObservationProcess):
         if self._get_num_goal_obs() > 0:
             goal_obs = self.goal_position_in_robot_frame()
             obs = self.concatenate_terms(obs, goal_obs)
+
+        if self._get_num_yaw_obs() > 0:
+            yaw_obs = self.world_yaw_observation()
+            obs = self.concatenate_terms(obs, yaw_obs)
 
         nav_scan = self.nav_scanner_observation()
         if nav_scan is not None:

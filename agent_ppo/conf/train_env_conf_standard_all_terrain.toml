@@ -127,7 +127,7 @@ pos = [0.0, 0.0, 0.35]
 [commands]
 # Velocity command resampling interval [min, max] (seconds).
 # 速度命令重采样区间 [min, max]（秒）
-resampling_time = [15.0, 15.0]
+resampling_time = [3.0, 6.0]
 
 [commands.limit]
 # Velocity command **hard limits** (curriculum may expand sampling range up to here).
@@ -164,11 +164,6 @@ weight = 0.3
 [rewards.track_ang_vel_z.params]
 std = 0.25
 command_name = "base_velocity"
-
-# --- Positive: forward progress (down stairs) ---
-# --- 正向：前进奖励（下台阶） ---
-[rewards.forward_velocity]
-weight = 2.0
 
 # --- Positive: feet air time (step quality) ---
 # --- 正向：脚部滞空时间（步态质量） ---
