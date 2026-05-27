@@ -1,0 +1,1169 @@
+title: 四足机器人
+groups:
+# ============================================================
+# 硬件指标
+# ============================================================
+# 添加vgpu相关指标监控
+- group_name: "硬件指标"
+  group_name_en: "hardware"
+  panels:
+    - panel_name: "GPU使用率"
+      panel_name_en: "gpu_usage"
+      type: "line"
+      unit: ""
+      custom: ""
+      metrics:
+        - metrics_name: "gpu_usage"
+          expr: "avg_over_time(Device_utilization_desc_of_container[5m]) / 100"
+    - panel_name: "GPU显存使用率"
+      panel_name_en: "gpu_mem_usage"
+      type: "line"
+      unit: ""
+      custom: ""
+      metrics:
+        - metrics_name: "gpu_mem_usage"
+          expr: "round(avg_over_time(vGPU_device_memory_usage_in_bytes[5m]) / vGPU_device_memory_limit_in_bytes, 0.01)"
+
+- group_name: 全局环境指标
+  group_name_en: env_global
+  panels:
+  - panel_name: 已结束任务数
+    panel_name_en: episode_count
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count
+      expr: kaiwu_completed_count{}
+    - metrics_name: abnormal_count
+      expr: kaiwu_abnormal_count{}
+    - metrics_name: timeout_count
+      expr: kaiwu_timeout_count{}
+  - panel_name: 得分
+    panel_name_en: score
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score
+      expr: kaiwu_total_score{}
+    - metrics_name: forward_score
+      expr: kaiwu_forward_score{}
+    - metrics_name: step_score
+      expr: kaiwu_step_score{}
+    - metrics_name: energy_score
+      expr: kaiwu_energy_score{}
+    - metrics_name: pose_score
+      expr: kaiwu_pose_score{}
+  - panel_name: 步数
+    panel_name_en: step
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_avg
+      expr: kaiwu_step_avg{}
+- group_name: 地形-斜坡
+  group_name_en: terrain_pyramid_slope
+  panels:
+  - panel_name: 斜坡-完成数
+    panel_name_en: completed_count_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count_pyramid_slope_l0
+      expr: kaiwu_completed_count_pyramid_slope_l0{}
+    - metrics_name: completed_count_pyramid_slope_l1
+      expr: kaiwu_completed_count_pyramid_slope_l1{}
+    - metrics_name: completed_count_pyramid_slope_l2
+      expr: kaiwu_completed_count_pyramid_slope_l2{}
+    - metrics_name: completed_count_pyramid_slope_l3
+      expr: kaiwu_completed_count_pyramid_slope_l3{}
+    - metrics_name: completed_count_pyramid_slope_l4
+      expr: kaiwu_completed_count_pyramid_slope_l4{}
+    - metrics_name: completed_count_pyramid_slope_l5
+      expr: kaiwu_completed_count_pyramid_slope_l5{}
+    - metrics_name: completed_count_pyramid_slope_l6
+      expr: kaiwu_completed_count_pyramid_slope_l6{}
+    - metrics_name: completed_count_pyramid_slope_l7
+      expr: kaiwu_completed_count_pyramid_slope_l7{}
+    - metrics_name: completed_count_pyramid_slope_l8
+      expr: kaiwu_completed_count_pyramid_slope_l8{}
+    - metrics_name: completed_count_pyramid_slope_l9
+      expr: kaiwu_completed_count_pyramid_slope_l9{}
+  - panel_name: 斜坡-失败数
+    panel_name_en: abnormal_count_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: abnormal_count_pyramid_slope_l0
+      expr: kaiwu_abnormal_count_pyramid_slope_l0{}
+    - metrics_name: abnormal_count_pyramid_slope_l1
+      expr: kaiwu_abnormal_count_pyramid_slope_l1{}
+    - metrics_name: abnormal_count_pyramid_slope_l2
+      expr: kaiwu_abnormal_count_pyramid_slope_l2{}
+    - metrics_name: abnormal_count_pyramid_slope_l3
+      expr: kaiwu_abnormal_count_pyramid_slope_l3{}
+    - metrics_name: abnormal_count_pyramid_slope_l4
+      expr: kaiwu_abnormal_count_pyramid_slope_l4{}
+    - metrics_name: abnormal_count_pyramid_slope_l5
+      expr: kaiwu_abnormal_count_pyramid_slope_l5{}
+    - metrics_name: abnormal_count_pyramid_slope_l6
+      expr: kaiwu_abnormal_count_pyramid_slope_l6{}
+    - metrics_name: abnormal_count_pyramid_slope_l7
+      expr: kaiwu_abnormal_count_pyramid_slope_l7{}
+    - metrics_name: abnormal_count_pyramid_slope_l8
+      expr: kaiwu_abnormal_count_pyramid_slope_l8{}
+    - metrics_name: abnormal_count_pyramid_slope_l9
+      expr: kaiwu_abnormal_count_pyramid_slope_l9{}
+  - panel_name: 斜坡-超时数
+    panel_name_en: timeout_count_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: timeout_count_pyramid_slope_l0
+      expr: kaiwu_timeout_count_pyramid_slope_l0{}
+    - metrics_name: timeout_count_pyramid_slope_l1
+      expr: kaiwu_timeout_count_pyramid_slope_l1{}
+    - metrics_name: timeout_count_pyramid_slope_l2
+      expr: kaiwu_timeout_count_pyramid_slope_l2{}
+    - metrics_name: timeout_count_pyramid_slope_l3
+      expr: kaiwu_timeout_count_pyramid_slope_l3{}
+    - metrics_name: timeout_count_pyramid_slope_l4
+      expr: kaiwu_timeout_count_pyramid_slope_l4{}
+    - metrics_name: timeout_count_pyramid_slope_l5
+      expr: kaiwu_timeout_count_pyramid_slope_l5{}
+    - metrics_name: timeout_count_pyramid_slope_l6
+      expr: kaiwu_timeout_count_pyramid_slope_l6{}
+    - metrics_name: timeout_count_pyramid_slope_l7
+      expr: kaiwu_timeout_count_pyramid_slope_l7{}
+    - metrics_name: timeout_count_pyramid_slope_l8
+      expr: kaiwu_timeout_count_pyramid_slope_l8{}
+    - metrics_name: timeout_count_pyramid_slope_l9
+      expr: kaiwu_timeout_count_pyramid_slope_l9{}
+  - panel_name: 斜坡-总分
+    panel_name_en: total_score_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score_pyramid_slope_l0
+      expr: kaiwu_total_score_pyramid_slope_l0{}
+    - metrics_name: total_score_pyramid_slope_l1
+      expr: kaiwu_total_score_pyramid_slope_l1{}
+    - metrics_name: total_score_pyramid_slope_l2
+      expr: kaiwu_total_score_pyramid_slope_l2{}
+    - metrics_name: total_score_pyramid_slope_l3
+      expr: kaiwu_total_score_pyramid_slope_l3{}
+    - metrics_name: total_score_pyramid_slope_l4
+      expr: kaiwu_total_score_pyramid_slope_l4{}
+    - metrics_name: total_score_pyramid_slope_l5
+      expr: kaiwu_total_score_pyramid_slope_l5{}
+    - metrics_name: total_score_pyramid_slope_l6
+      expr: kaiwu_total_score_pyramid_slope_l6{}
+    - metrics_name: total_score_pyramid_slope_l7
+      expr: kaiwu_total_score_pyramid_slope_l7{}
+    - metrics_name: total_score_pyramid_slope_l8
+      expr: kaiwu_total_score_pyramid_slope_l8{}
+    - metrics_name: total_score_pyramid_slope_l9
+      expr: kaiwu_total_score_pyramid_slope_l9{}
+  - panel_name: 斜坡-时间分数
+    panel_name_en: step_score_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_score_pyramid_slope_l0
+      expr: kaiwu_step_score_pyramid_slope_l0{}
+    - metrics_name: step_score_pyramid_slope_l1
+      expr: kaiwu_step_score_pyramid_slope_l1{}
+    - metrics_name: step_score_pyramid_slope_l2
+      expr: kaiwu_step_score_pyramid_slope_l2{}
+    - metrics_name: step_score_pyramid_slope_l3
+      expr: kaiwu_step_score_pyramid_slope_l3{}
+    - metrics_name: step_score_pyramid_slope_l4
+      expr: kaiwu_step_score_pyramid_slope_l4{}
+    - metrics_name: step_score_pyramid_slope_l5
+      expr: kaiwu_step_score_pyramid_slope_l5{}
+    - metrics_name: step_score_pyramid_slope_l6
+      expr: kaiwu_step_score_pyramid_slope_l6{}
+    - metrics_name: step_score_pyramid_slope_l7
+      expr: kaiwu_step_score_pyramid_slope_l7{}
+    - metrics_name: step_score_pyramid_slope_l8
+      expr: kaiwu_step_score_pyramid_slope_l8{}
+    - metrics_name: step_score_pyramid_slope_l9
+      expr: kaiwu_step_score_pyramid_slope_l9{}
+  - panel_name: 斜坡-姿态分数
+    panel_name_en: pose_score_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: pose_score_pyramid_slope_l0
+      expr: kaiwu_pose_score_pyramid_slope_l0{}
+    - metrics_name: pose_score_pyramid_slope_l1
+      expr: kaiwu_pose_score_pyramid_slope_l1{}
+    - metrics_name: pose_score_pyramid_slope_l2
+      expr: kaiwu_pose_score_pyramid_slope_l2{}
+    - metrics_name: pose_score_pyramid_slope_l3
+      expr: kaiwu_pose_score_pyramid_slope_l3{}
+    - metrics_name: pose_score_pyramid_slope_l4
+      expr: kaiwu_pose_score_pyramid_slope_l4{}
+    - metrics_name: pose_score_pyramid_slope_l5
+      expr: kaiwu_pose_score_pyramid_slope_l5{}
+    - metrics_name: pose_score_pyramid_slope_l6
+      expr: kaiwu_pose_score_pyramid_slope_l6{}
+    - metrics_name: pose_score_pyramid_slope_l7
+      expr: kaiwu_pose_score_pyramid_slope_l7{}
+    - metrics_name: pose_score_pyramid_slope_l8
+      expr: kaiwu_pose_score_pyramid_slope_l8{}
+    - metrics_name: pose_score_pyramid_slope_l9
+      expr: kaiwu_pose_score_pyramid_slope_l9{}
+  - panel_name: 斜坡-能耗分数
+    panel_name_en: energy_score_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: energy_score_pyramid_slope_l0
+      expr: kaiwu_energy_score_pyramid_slope_l0{}
+    - metrics_name: energy_score_pyramid_slope_l1
+      expr: kaiwu_energy_score_pyramid_slope_l1{}
+    - metrics_name: energy_score_pyramid_slope_l2
+      expr: kaiwu_energy_score_pyramid_slope_l2{}
+    - metrics_name: energy_score_pyramid_slope_l3
+      expr: kaiwu_energy_score_pyramid_slope_l3{}
+    - metrics_name: energy_score_pyramid_slope_l4
+      expr: kaiwu_energy_score_pyramid_slope_l4{}
+    - metrics_name: energy_score_pyramid_slope_l5
+      expr: kaiwu_energy_score_pyramid_slope_l5{}
+    - metrics_name: energy_score_pyramid_slope_l6
+      expr: kaiwu_energy_score_pyramid_slope_l6{}
+    - metrics_name: energy_score_pyramid_slope_l7
+      expr: kaiwu_energy_score_pyramid_slope_l7{}
+    - metrics_name: energy_score_pyramid_slope_l8
+      expr: kaiwu_energy_score_pyramid_slope_l8{}
+    - metrics_name: energy_score_pyramid_slope_l9
+      expr: kaiwu_energy_score_pyramid_slope_l9{}
+  - panel_name: 斜坡-步数
+    panel_name_en: step_pyramid_slope
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_pyramid_slope_l0
+      expr: kaiwu_step_pyramid_slope_l0{}
+    - metrics_name: step_pyramid_slope_l1
+      expr: kaiwu_step_pyramid_slope_l1{}
+    - metrics_name: step_pyramid_slope_l2
+      expr: kaiwu_step_pyramid_slope_l2{}
+    - metrics_name: step_pyramid_slope_l3
+      expr: kaiwu_step_pyramid_slope_l3{}
+    - metrics_name: step_pyramid_slope_l4
+      expr: kaiwu_step_pyramid_slope_l4{}
+    - metrics_name: step_pyramid_slope_l5
+      expr: kaiwu_step_pyramid_slope_l5{}
+    - metrics_name: step_pyramid_slope_l6
+      expr: kaiwu_step_pyramid_slope_l6{}
+    - metrics_name: step_pyramid_slope_l7
+      expr: kaiwu_step_pyramid_slope_l7{}
+    - metrics_name: step_pyramid_slope_l8
+      expr: kaiwu_step_pyramid_slope_l8{}
+    - metrics_name: step_pyramid_slope_l9
+      expr: kaiwu_step_pyramid_slope_l9{}
+- group_name: 地形-倒斜坡
+  group_name_en: terrain_pyramid_slope_inv
+  panels:
+  - panel_name: 倒斜坡-完成数
+    panel_name_en: completed_count_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count_pyramid_slope_inv_l0
+      expr: kaiwu_completed_count_pyramid_slope_inv_l0{}
+    - metrics_name: completed_count_pyramid_slope_inv_l1
+      expr: kaiwu_completed_count_pyramid_slope_inv_l1{}
+    - metrics_name: completed_count_pyramid_slope_inv_l2
+      expr: kaiwu_completed_count_pyramid_slope_inv_l2{}
+    - metrics_name: completed_count_pyramid_slope_inv_l3
+      expr: kaiwu_completed_count_pyramid_slope_inv_l3{}
+    - metrics_name: completed_count_pyramid_slope_inv_l4
+      expr: kaiwu_completed_count_pyramid_slope_inv_l4{}
+    - metrics_name: completed_count_pyramid_slope_inv_l5
+      expr: kaiwu_completed_count_pyramid_slope_inv_l5{}
+    - metrics_name: completed_count_pyramid_slope_inv_l6
+      expr: kaiwu_completed_count_pyramid_slope_inv_l6{}
+    - metrics_name: completed_count_pyramid_slope_inv_l7
+      expr: kaiwu_completed_count_pyramid_slope_inv_l7{}
+    - metrics_name: completed_count_pyramid_slope_inv_l8
+      expr: kaiwu_completed_count_pyramid_slope_inv_l8{}
+    - metrics_name: completed_count_pyramid_slope_inv_l9
+      expr: kaiwu_completed_count_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-失败数
+    panel_name_en: abnormal_count_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: abnormal_count_pyramid_slope_inv_l0
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l0{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l1
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l1{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l2
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l2{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l3
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l3{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l4
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l4{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l5
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l5{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l6
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l6{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l7
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l7{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l8
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l8{}
+    - metrics_name: abnormal_count_pyramid_slope_inv_l9
+      expr: kaiwu_abnormal_count_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-超时数
+    panel_name_en: timeout_count_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: timeout_count_pyramid_slope_inv_l0
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l0{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l1
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l1{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l2
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l2{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l3
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l3{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l4
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l4{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l5
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l5{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l6
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l6{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l7
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l7{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l8
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l8{}
+    - metrics_name: timeout_count_pyramid_slope_inv_l9
+      expr: kaiwu_timeout_count_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-总分
+    panel_name_en: total_score_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score_pyramid_slope_inv_l0
+      expr: kaiwu_total_score_pyramid_slope_inv_l0{}
+    - metrics_name: total_score_pyramid_slope_inv_l1
+      expr: kaiwu_total_score_pyramid_slope_inv_l1{}
+    - metrics_name: total_score_pyramid_slope_inv_l2
+      expr: kaiwu_total_score_pyramid_slope_inv_l2{}
+    - metrics_name: total_score_pyramid_slope_inv_l3
+      expr: kaiwu_total_score_pyramid_slope_inv_l3{}
+    - metrics_name: total_score_pyramid_slope_inv_l4
+      expr: kaiwu_total_score_pyramid_slope_inv_l4{}
+    - metrics_name: total_score_pyramid_slope_inv_l5
+      expr: kaiwu_total_score_pyramid_slope_inv_l5{}
+    - metrics_name: total_score_pyramid_slope_inv_l6
+      expr: kaiwu_total_score_pyramid_slope_inv_l6{}
+    - metrics_name: total_score_pyramid_slope_inv_l7
+      expr: kaiwu_total_score_pyramid_slope_inv_l7{}
+    - metrics_name: total_score_pyramid_slope_inv_l8
+      expr: kaiwu_total_score_pyramid_slope_inv_l8{}
+    - metrics_name: total_score_pyramid_slope_inv_l9
+      expr: kaiwu_total_score_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-时间分数
+    panel_name_en: step_score_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_score_pyramid_slope_inv_l0
+      expr: kaiwu_step_score_pyramid_slope_inv_l0{}
+    - metrics_name: step_score_pyramid_slope_inv_l1
+      expr: kaiwu_step_score_pyramid_slope_inv_l1{}
+    - metrics_name: step_score_pyramid_slope_inv_l2
+      expr: kaiwu_step_score_pyramid_slope_inv_l2{}
+    - metrics_name: step_score_pyramid_slope_inv_l3
+      expr: kaiwu_step_score_pyramid_slope_inv_l3{}
+    - metrics_name: step_score_pyramid_slope_inv_l4
+      expr: kaiwu_step_score_pyramid_slope_inv_l4{}
+    - metrics_name: step_score_pyramid_slope_inv_l5
+      expr: kaiwu_step_score_pyramid_slope_inv_l5{}
+    - metrics_name: step_score_pyramid_slope_inv_l6
+      expr: kaiwu_step_score_pyramid_slope_inv_l6{}
+    - metrics_name: step_score_pyramid_slope_inv_l7
+      expr: kaiwu_step_score_pyramid_slope_inv_l7{}
+    - metrics_name: step_score_pyramid_slope_inv_l8
+      expr: kaiwu_step_score_pyramid_slope_inv_l8{}
+    - metrics_name: step_score_pyramid_slope_inv_l9
+      expr: kaiwu_step_score_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-姿态分数
+    panel_name_en: pose_score_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: pose_score_pyramid_slope_inv_l0
+      expr: kaiwu_pose_score_pyramid_slope_inv_l0{}
+    - metrics_name: pose_score_pyramid_slope_inv_l1
+      expr: kaiwu_pose_score_pyramid_slope_inv_l1{}
+    - metrics_name: pose_score_pyramid_slope_inv_l2
+      expr: kaiwu_pose_score_pyramid_slope_inv_l2{}
+    - metrics_name: pose_score_pyramid_slope_inv_l3
+      expr: kaiwu_pose_score_pyramid_slope_inv_l3{}
+    - metrics_name: pose_score_pyramid_slope_inv_l4
+      expr: kaiwu_pose_score_pyramid_slope_inv_l4{}
+    - metrics_name: pose_score_pyramid_slope_inv_l5
+      expr: kaiwu_pose_score_pyramid_slope_inv_l5{}
+    - metrics_name: pose_score_pyramid_slope_inv_l6
+      expr: kaiwu_pose_score_pyramid_slope_inv_l6{}
+    - metrics_name: pose_score_pyramid_slope_inv_l7
+      expr: kaiwu_pose_score_pyramid_slope_inv_l7{}
+    - metrics_name: pose_score_pyramid_slope_inv_l8
+      expr: kaiwu_pose_score_pyramid_slope_inv_l8{}
+    - metrics_name: pose_score_pyramid_slope_inv_l9
+      expr: kaiwu_pose_score_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-能耗分数
+    panel_name_en: energy_score_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: energy_score_pyramid_slope_inv_l0
+      expr: kaiwu_energy_score_pyramid_slope_inv_l0{}
+    - metrics_name: energy_score_pyramid_slope_inv_l1
+      expr: kaiwu_energy_score_pyramid_slope_inv_l1{}
+    - metrics_name: energy_score_pyramid_slope_inv_l2
+      expr: kaiwu_energy_score_pyramid_slope_inv_l2{}
+    - metrics_name: energy_score_pyramid_slope_inv_l3
+      expr: kaiwu_energy_score_pyramid_slope_inv_l3{}
+    - metrics_name: energy_score_pyramid_slope_inv_l4
+      expr: kaiwu_energy_score_pyramid_slope_inv_l4{}
+    - metrics_name: energy_score_pyramid_slope_inv_l5
+      expr: kaiwu_energy_score_pyramid_slope_inv_l5{}
+    - metrics_name: energy_score_pyramid_slope_inv_l6
+      expr: kaiwu_energy_score_pyramid_slope_inv_l6{}
+    - metrics_name: energy_score_pyramid_slope_inv_l7
+      expr: kaiwu_energy_score_pyramid_slope_inv_l7{}
+    - metrics_name: energy_score_pyramid_slope_inv_l8
+      expr: kaiwu_energy_score_pyramid_slope_inv_l8{}
+    - metrics_name: energy_score_pyramid_slope_inv_l9
+      expr: kaiwu_energy_score_pyramid_slope_inv_l9{}
+  - panel_name: 倒斜坡-步数
+    panel_name_en: step_pyramid_slope_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_pyramid_slope_inv_l0
+      expr: kaiwu_step_pyramid_slope_inv_l0{}
+    - metrics_name: step_pyramid_slope_inv_l1
+      expr: kaiwu_step_pyramid_slope_inv_l1{}
+    - metrics_name: step_pyramid_slope_inv_l2
+      expr: kaiwu_step_pyramid_slope_inv_l2{}
+    - metrics_name: step_pyramid_slope_inv_l3
+      expr: kaiwu_step_pyramid_slope_inv_l3{}
+    - metrics_name: step_pyramid_slope_inv_l4
+      expr: kaiwu_step_pyramid_slope_inv_l4{}
+    - metrics_name: step_pyramid_slope_inv_l5
+      expr: kaiwu_step_pyramid_slope_inv_l5{}
+    - metrics_name: step_pyramid_slope_inv_l6
+      expr: kaiwu_step_pyramid_slope_inv_l6{}
+    - metrics_name: step_pyramid_slope_inv_l7
+      expr: kaiwu_step_pyramid_slope_inv_l7{}
+    - metrics_name: step_pyramid_slope_inv_l8
+      expr: kaiwu_step_pyramid_slope_inv_l8{}
+    - metrics_name: step_pyramid_slope_inv_l9
+      expr: kaiwu_step_pyramid_slope_inv_l9{}
+- group_name: 地形-台阶
+  group_name_en: terrain_pyramid_stairs
+  panels:
+  - panel_name: 台阶-完成数
+    panel_name_en: completed_count_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count_pyramid_stairs_l0
+      expr: kaiwu_completed_count_pyramid_stairs_l0{}
+    - metrics_name: completed_count_pyramid_stairs_l1
+      expr: kaiwu_completed_count_pyramid_stairs_l1{}
+    - metrics_name: completed_count_pyramid_stairs_l2
+      expr: kaiwu_completed_count_pyramid_stairs_l2{}
+    - metrics_name: completed_count_pyramid_stairs_l3
+      expr: kaiwu_completed_count_pyramid_stairs_l3{}
+    - metrics_name: completed_count_pyramid_stairs_l4
+      expr: kaiwu_completed_count_pyramid_stairs_l4{}
+    - metrics_name: completed_count_pyramid_stairs_l5
+      expr: kaiwu_completed_count_pyramid_stairs_l5{}
+    - metrics_name: completed_count_pyramid_stairs_l6
+      expr: kaiwu_completed_count_pyramid_stairs_l6{}
+    - metrics_name: completed_count_pyramid_stairs_l7
+      expr: kaiwu_completed_count_pyramid_stairs_l7{}
+    - metrics_name: completed_count_pyramid_stairs_l8
+      expr: kaiwu_completed_count_pyramid_stairs_l8{}
+    - metrics_name: completed_count_pyramid_stairs_l9
+      expr: kaiwu_completed_count_pyramid_stairs_l9{}
+  - panel_name: 台阶-失败数
+    panel_name_en: abnormal_count_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: abnormal_count_pyramid_stairs_l0
+      expr: kaiwu_abnormal_count_pyramid_stairs_l0{}
+    - metrics_name: abnormal_count_pyramid_stairs_l1
+      expr: kaiwu_abnormal_count_pyramid_stairs_l1{}
+    - metrics_name: abnormal_count_pyramid_stairs_l2
+      expr: kaiwu_abnormal_count_pyramid_stairs_l2{}
+    - metrics_name: abnormal_count_pyramid_stairs_l3
+      expr: kaiwu_abnormal_count_pyramid_stairs_l3{}
+    - metrics_name: abnormal_count_pyramid_stairs_l4
+      expr: kaiwu_abnormal_count_pyramid_stairs_l4{}
+    - metrics_name: abnormal_count_pyramid_stairs_l5
+      expr: kaiwu_abnormal_count_pyramid_stairs_l5{}
+    - metrics_name: abnormal_count_pyramid_stairs_l6
+      expr: kaiwu_abnormal_count_pyramid_stairs_l6{}
+    - metrics_name: abnormal_count_pyramid_stairs_l7
+      expr: kaiwu_abnormal_count_pyramid_stairs_l7{}
+    - metrics_name: abnormal_count_pyramid_stairs_l8
+      expr: kaiwu_abnormal_count_pyramid_stairs_l8{}
+    - metrics_name: abnormal_count_pyramid_stairs_l9
+      expr: kaiwu_abnormal_count_pyramid_stairs_l9{}
+  - panel_name: 台阶-超时数
+    panel_name_en: timeout_count_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: timeout_count_pyramid_stairs_l0
+      expr: kaiwu_timeout_count_pyramid_stairs_l0{}
+    - metrics_name: timeout_count_pyramid_stairs_l1
+      expr: kaiwu_timeout_count_pyramid_stairs_l1{}
+    - metrics_name: timeout_count_pyramid_stairs_l2
+      expr: kaiwu_timeout_count_pyramid_stairs_l2{}
+    - metrics_name: timeout_count_pyramid_stairs_l3
+      expr: kaiwu_timeout_count_pyramid_stairs_l3{}
+    - metrics_name: timeout_count_pyramid_stairs_l4
+      expr: kaiwu_timeout_count_pyramid_stairs_l4{}
+    - metrics_name: timeout_count_pyramid_stairs_l5
+      expr: kaiwu_timeout_count_pyramid_stairs_l5{}
+    - metrics_name: timeout_count_pyramid_stairs_l6
+      expr: kaiwu_timeout_count_pyramid_stairs_l6{}
+    - metrics_name: timeout_count_pyramid_stairs_l7
+      expr: kaiwu_timeout_count_pyramid_stairs_l7{}
+    - metrics_name: timeout_count_pyramid_stairs_l8
+      expr: kaiwu_timeout_count_pyramid_stairs_l8{}
+    - metrics_name: timeout_count_pyramid_stairs_l9
+      expr: kaiwu_timeout_count_pyramid_stairs_l9{}
+  - panel_name: 台阶-总分
+    panel_name_en: total_score_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score_pyramid_stairs_l0
+      expr: kaiwu_total_score_pyramid_stairs_l0{}
+    - metrics_name: total_score_pyramid_stairs_l1
+      expr: kaiwu_total_score_pyramid_stairs_l1{}
+    - metrics_name: total_score_pyramid_stairs_l2
+      expr: kaiwu_total_score_pyramid_stairs_l2{}
+    - metrics_name: total_score_pyramid_stairs_l3
+      expr: kaiwu_total_score_pyramid_stairs_l3{}
+    - metrics_name: total_score_pyramid_stairs_l4
+      expr: kaiwu_total_score_pyramid_stairs_l4{}
+    - metrics_name: total_score_pyramid_stairs_l5
+      expr: kaiwu_total_score_pyramid_stairs_l5{}
+    - metrics_name: total_score_pyramid_stairs_l6
+      expr: kaiwu_total_score_pyramid_stairs_l6{}
+    - metrics_name: total_score_pyramid_stairs_l7
+      expr: kaiwu_total_score_pyramid_stairs_l7{}
+    - metrics_name: total_score_pyramid_stairs_l8
+      expr: kaiwu_total_score_pyramid_stairs_l8{}
+    - metrics_name: total_score_pyramid_stairs_l9
+      expr: kaiwu_total_score_pyramid_stairs_l9{}
+  - panel_name: 台阶-时间分数
+    panel_name_en: step_score_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_score_pyramid_stairs_l0
+      expr: kaiwu_step_score_pyramid_stairs_l0{}
+    - metrics_name: step_score_pyramid_stairs_l1
+      expr: kaiwu_step_score_pyramid_stairs_l1{}
+    - metrics_name: step_score_pyramid_stairs_l2
+      expr: kaiwu_step_score_pyramid_stairs_l2{}
+    - metrics_name: step_score_pyramid_stairs_l3
+      expr: kaiwu_step_score_pyramid_stairs_l3{}
+    - metrics_name: step_score_pyramid_stairs_l4
+      expr: kaiwu_step_score_pyramid_stairs_l4{}
+    - metrics_name: step_score_pyramid_stairs_l5
+      expr: kaiwu_step_score_pyramid_stairs_l5{}
+    - metrics_name: step_score_pyramid_stairs_l6
+      expr: kaiwu_step_score_pyramid_stairs_l6{}
+    - metrics_name: step_score_pyramid_stairs_l7
+      expr: kaiwu_step_score_pyramid_stairs_l7{}
+    - metrics_name: step_score_pyramid_stairs_l8
+      expr: kaiwu_step_score_pyramid_stairs_l8{}
+    - metrics_name: step_score_pyramid_stairs_l9
+      expr: kaiwu_step_score_pyramid_stairs_l9{}
+  - panel_name: 台阶-姿态分数
+    panel_name_en: pose_score_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: pose_score_pyramid_stairs_l0
+      expr: kaiwu_pose_score_pyramid_stairs_l0{}
+    - metrics_name: pose_score_pyramid_stairs_l1
+      expr: kaiwu_pose_score_pyramid_stairs_l1{}
+    - metrics_name: pose_score_pyramid_stairs_l2
+      expr: kaiwu_pose_score_pyramid_stairs_l2{}
+    - metrics_name: pose_score_pyramid_stairs_l3
+      expr: kaiwu_pose_score_pyramid_stairs_l3{}
+    - metrics_name: pose_score_pyramid_stairs_l4
+      expr: kaiwu_pose_score_pyramid_stairs_l4{}
+    - metrics_name: pose_score_pyramid_stairs_l5
+      expr: kaiwu_pose_score_pyramid_stairs_l5{}
+    - metrics_name: pose_score_pyramid_stairs_l6
+      expr: kaiwu_pose_score_pyramid_stairs_l6{}
+    - metrics_name: pose_score_pyramid_stairs_l7
+      expr: kaiwu_pose_score_pyramid_stairs_l7{}
+    - metrics_name: pose_score_pyramid_stairs_l8
+      expr: kaiwu_pose_score_pyramid_stairs_l8{}
+    - metrics_name: pose_score_pyramid_stairs_l9
+      expr: kaiwu_pose_score_pyramid_stairs_l9{}
+  - panel_name: 台阶-能耗分数
+    panel_name_en: energy_score_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: energy_score_pyramid_stairs_l0
+      expr: kaiwu_energy_score_pyramid_stairs_l0{}
+    - metrics_name: energy_score_pyramid_stairs_l1
+      expr: kaiwu_energy_score_pyramid_stairs_l1{}
+    - metrics_name: energy_score_pyramid_stairs_l2
+      expr: kaiwu_energy_score_pyramid_stairs_l2{}
+    - metrics_name: energy_score_pyramid_stairs_l3
+      expr: kaiwu_energy_score_pyramid_stairs_l3{}
+    - metrics_name: energy_score_pyramid_stairs_l4
+      expr: kaiwu_energy_score_pyramid_stairs_l4{}
+    - metrics_name: energy_score_pyramid_stairs_l5
+      expr: kaiwu_energy_score_pyramid_stairs_l5{}
+    - metrics_name: energy_score_pyramid_stairs_l6
+      expr: kaiwu_energy_score_pyramid_stairs_l6{}
+    - metrics_name: energy_score_pyramid_stairs_l7
+      expr: kaiwu_energy_score_pyramid_stairs_l7{}
+    - metrics_name: energy_score_pyramid_stairs_l8
+      expr: kaiwu_energy_score_pyramid_stairs_l8{}
+    - metrics_name: energy_score_pyramid_stairs_l9
+      expr: kaiwu_energy_score_pyramid_stairs_l9{}
+  - panel_name: 台阶-步数
+    panel_name_en: step_pyramid_stairs
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_pyramid_stairs_l0
+      expr: kaiwu_step_pyramid_stairs_l0{}
+    - metrics_name: step_pyramid_stairs_l1
+      expr: kaiwu_step_pyramid_stairs_l1{}
+    - metrics_name: step_pyramid_stairs_l2
+      expr: kaiwu_step_pyramid_stairs_l2{}
+    - metrics_name: step_pyramid_stairs_l3
+      expr: kaiwu_step_pyramid_stairs_l3{}
+    - metrics_name: step_pyramid_stairs_l4
+      expr: kaiwu_step_pyramid_stairs_l4{}
+    - metrics_name: step_pyramid_stairs_l5
+      expr: kaiwu_step_pyramid_stairs_l5{}
+    - metrics_name: step_pyramid_stairs_l6
+      expr: kaiwu_step_pyramid_stairs_l6{}
+    - metrics_name: step_pyramid_stairs_l7
+      expr: kaiwu_step_pyramid_stairs_l7{}
+    - metrics_name: step_pyramid_stairs_l8
+      expr: kaiwu_step_pyramid_stairs_l8{}
+    - metrics_name: step_pyramid_stairs_l9
+      expr: kaiwu_step_pyramid_stairs_l9{}
+- group_name: 地形-倒台阶
+  group_name_en: terrain_pyramid_stairs_inv
+  panels:
+  - panel_name: 倒台阶-完成数
+    panel_name_en: completed_count_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count_pyramid_stairs_inv_l0
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l0{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l1
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l1{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l2
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l2{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l3
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l3{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l4
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l4{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l5
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l5{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l6
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l6{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l7
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l7{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l8
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l8{}
+    - metrics_name: completed_count_pyramid_stairs_inv_l9
+      expr: kaiwu_completed_count_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-失败数
+    panel_name_en: abnormal_count_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l0
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l0{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l1
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l1{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l2
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l2{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l3
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l3{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l4
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l4{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l5
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l5{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l6
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l6{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l7
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l7{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l8
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l8{}
+    - metrics_name: abnormal_count_pyramid_stairs_inv_l9
+      expr: kaiwu_abnormal_count_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-超时数
+    panel_name_en: timeout_count_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: timeout_count_pyramid_stairs_inv_l0
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l0{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l1
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l1{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l2
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l2{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l3
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l3{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l4
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l4{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l5
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l5{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l6
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l6{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l7
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l7{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l8
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l8{}
+    - metrics_name: timeout_count_pyramid_stairs_inv_l9
+      expr: kaiwu_timeout_count_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-总分
+    panel_name_en: total_score_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score_pyramid_stairs_inv_l0
+      expr: kaiwu_total_score_pyramid_stairs_inv_l0{}
+    - metrics_name: total_score_pyramid_stairs_inv_l1
+      expr: kaiwu_total_score_pyramid_stairs_inv_l1{}
+    - metrics_name: total_score_pyramid_stairs_inv_l2
+      expr: kaiwu_total_score_pyramid_stairs_inv_l2{}
+    - metrics_name: total_score_pyramid_stairs_inv_l3
+      expr: kaiwu_total_score_pyramid_stairs_inv_l3{}
+    - metrics_name: total_score_pyramid_stairs_inv_l4
+      expr: kaiwu_total_score_pyramid_stairs_inv_l4{}
+    - metrics_name: total_score_pyramid_stairs_inv_l5
+      expr: kaiwu_total_score_pyramid_stairs_inv_l5{}
+    - metrics_name: total_score_pyramid_stairs_inv_l6
+      expr: kaiwu_total_score_pyramid_stairs_inv_l6{}
+    - metrics_name: total_score_pyramid_stairs_inv_l7
+      expr: kaiwu_total_score_pyramid_stairs_inv_l7{}
+    - metrics_name: total_score_pyramid_stairs_inv_l8
+      expr: kaiwu_total_score_pyramid_stairs_inv_l8{}
+    - metrics_name: total_score_pyramid_stairs_inv_l9
+      expr: kaiwu_total_score_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-时间分数
+    panel_name_en: step_score_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_score_pyramid_stairs_inv_l0
+      expr: kaiwu_step_score_pyramid_stairs_inv_l0{}
+    - metrics_name: step_score_pyramid_stairs_inv_l1
+      expr: kaiwu_step_score_pyramid_stairs_inv_l1{}
+    - metrics_name: step_score_pyramid_stairs_inv_l2
+      expr: kaiwu_step_score_pyramid_stairs_inv_l2{}
+    - metrics_name: step_score_pyramid_stairs_inv_l3
+      expr: kaiwu_step_score_pyramid_stairs_inv_l3{}
+    - metrics_name: step_score_pyramid_stairs_inv_l4
+      expr: kaiwu_step_score_pyramid_stairs_inv_l4{}
+    - metrics_name: step_score_pyramid_stairs_inv_l5
+      expr: kaiwu_step_score_pyramid_stairs_inv_l5{}
+    - metrics_name: step_score_pyramid_stairs_inv_l6
+      expr: kaiwu_step_score_pyramid_stairs_inv_l6{}
+    - metrics_name: step_score_pyramid_stairs_inv_l7
+      expr: kaiwu_step_score_pyramid_stairs_inv_l7{}
+    - metrics_name: step_score_pyramid_stairs_inv_l8
+      expr: kaiwu_step_score_pyramid_stairs_inv_l8{}
+    - metrics_name: step_score_pyramid_stairs_inv_l9
+      expr: kaiwu_step_score_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-姿态分数
+    panel_name_en: pose_score_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: pose_score_pyramid_stairs_inv_l0
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l0{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l1
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l1{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l2
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l2{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l3
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l3{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l4
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l4{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l5
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l5{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l6
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l6{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l7
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l7{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l8
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l8{}
+    - metrics_name: pose_score_pyramid_stairs_inv_l9
+      expr: kaiwu_pose_score_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-能耗分数
+    panel_name_en: energy_score_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: energy_score_pyramid_stairs_inv_l0
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l0{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l1
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l1{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l2
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l2{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l3
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l3{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l4
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l4{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l5
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l5{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l6
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l6{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l7
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l7{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l8
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l8{}
+    - metrics_name: energy_score_pyramid_stairs_inv_l9
+      expr: kaiwu_energy_score_pyramid_stairs_inv_l9{}
+  - panel_name: 倒台阶-步数
+    panel_name_en: step_pyramid_stairs_inv
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_pyramid_stairs_inv_l0
+      expr: kaiwu_step_pyramid_stairs_inv_l0{}
+    - metrics_name: step_pyramid_stairs_inv_l1
+      expr: kaiwu_step_pyramid_stairs_inv_l1{}
+    - metrics_name: step_pyramid_stairs_inv_l2
+      expr: kaiwu_step_pyramid_stairs_inv_l2{}
+    - metrics_name: step_pyramid_stairs_inv_l3
+      expr: kaiwu_step_pyramid_stairs_inv_l3{}
+    - metrics_name: step_pyramid_stairs_inv_l4
+      expr: kaiwu_step_pyramid_stairs_inv_l4{}
+    - metrics_name: step_pyramid_stairs_inv_l5
+      expr: kaiwu_step_pyramid_stairs_inv_l5{}
+    - metrics_name: step_pyramid_stairs_inv_l6
+      expr: kaiwu_step_pyramid_stairs_inv_l6{}
+    - metrics_name: step_pyramid_stairs_inv_l7
+      expr: kaiwu_step_pyramid_stairs_inv_l7{}
+    - metrics_name: step_pyramid_stairs_inv_l8
+      expr: kaiwu_step_pyramid_stairs_inv_l8{}
+    - metrics_name: step_pyramid_stairs_inv_l9
+      expr: kaiwu_step_pyramid_stairs_inv_l9{}
+- group_name: 地形-迷宫
+  group_name_en: terrain_maze
+  panels:
+  - panel_name: 迷宫-完成数
+    panel_name_en: completed_count_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count_maze_l0
+      expr: kaiwu_completed_count_maze_l0{}
+    - metrics_name: completed_count_maze_l1
+      expr: kaiwu_completed_count_maze_l1{}
+    - metrics_name: completed_count_maze_l2
+      expr: kaiwu_completed_count_maze_l2{}
+    - metrics_name: completed_count_maze_l3
+      expr: kaiwu_completed_count_maze_l3{}
+    - metrics_name: completed_count_maze_l4
+      expr: kaiwu_completed_count_maze_l4{}
+    - metrics_name: completed_count_maze_l5
+      expr: kaiwu_completed_count_maze_l5{}
+    - metrics_name: completed_count_maze_l6
+      expr: kaiwu_completed_count_maze_l6{}
+    - metrics_name: completed_count_maze_l7
+      expr: kaiwu_completed_count_maze_l7{}
+    - metrics_name: completed_count_maze_l8
+      expr: kaiwu_completed_count_maze_l8{}
+    - metrics_name: completed_count_maze_l9
+      expr: kaiwu_completed_count_maze_l9{}
+  - panel_name: 迷宫-失败数
+    panel_name_en: abnormal_count_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: abnormal_count_maze_l0
+      expr: kaiwu_abnormal_count_maze_l0{}
+    - metrics_name: abnormal_count_maze_l1
+      expr: kaiwu_abnormal_count_maze_l1{}
+    - metrics_name: abnormal_count_maze_l2
+      expr: kaiwu_abnormal_count_maze_l2{}
+    - metrics_name: abnormal_count_maze_l3
+      expr: kaiwu_abnormal_count_maze_l3{}
+    - metrics_name: abnormal_count_maze_l4
+      expr: kaiwu_abnormal_count_maze_l4{}
+    - metrics_name: abnormal_count_maze_l5
+      expr: kaiwu_abnormal_count_maze_l5{}
+    - metrics_name: abnormal_count_maze_l6
+      expr: kaiwu_abnormal_count_maze_l6{}
+    - metrics_name: abnormal_count_maze_l7
+      expr: kaiwu_abnormal_count_maze_l7{}
+    - metrics_name: abnormal_count_maze_l8
+      expr: kaiwu_abnormal_count_maze_l8{}
+    - metrics_name: abnormal_count_maze_l9
+      expr: kaiwu_abnormal_count_maze_l9{}
+  - panel_name: 迷宫-超时数
+    panel_name_en: timeout_count_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: timeout_count_maze_l0
+      expr: kaiwu_timeout_count_maze_l0{}
+    - metrics_name: timeout_count_maze_l1
+      expr: kaiwu_timeout_count_maze_l1{}
+    - metrics_name: timeout_count_maze_l2
+      expr: kaiwu_timeout_count_maze_l2{}
+    - metrics_name: timeout_count_maze_l3
+      expr: kaiwu_timeout_count_maze_l3{}
+    - metrics_name: timeout_count_maze_l4
+      expr: kaiwu_timeout_count_maze_l4{}
+    - metrics_name: timeout_count_maze_l5
+      expr: kaiwu_timeout_count_maze_l5{}
+    - metrics_name: timeout_count_maze_l6
+      expr: kaiwu_timeout_count_maze_l6{}
+    - metrics_name: timeout_count_maze_l7
+      expr: kaiwu_timeout_count_maze_l7{}
+    - metrics_name: timeout_count_maze_l8
+      expr: kaiwu_timeout_count_maze_l8{}
+    - metrics_name: timeout_count_maze_l9
+      expr: kaiwu_timeout_count_maze_l9{}
+  - panel_name: 迷宫-总分
+    panel_name_en: total_score_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score_maze_l0
+      expr: kaiwu_total_score_maze_l0{}
+    - metrics_name: total_score_maze_l1
+      expr: kaiwu_total_score_maze_l1{}
+    - metrics_name: total_score_maze_l2
+      expr: kaiwu_total_score_maze_l2{}
+    - metrics_name: total_score_maze_l3
+      expr: kaiwu_total_score_maze_l3{}
+    - metrics_name: total_score_maze_l4
+      expr: kaiwu_total_score_maze_l4{}
+    - metrics_name: total_score_maze_l5
+      expr: kaiwu_total_score_maze_l5{}
+    - metrics_name: total_score_maze_l6
+      expr: kaiwu_total_score_maze_l6{}
+    - metrics_name: total_score_maze_l7
+      expr: kaiwu_total_score_maze_l7{}
+    - metrics_name: total_score_maze_l8
+      expr: kaiwu_total_score_maze_l8{}
+    - metrics_name: total_score_maze_l9
+      expr: kaiwu_total_score_maze_l9{}
+  - panel_name: 迷宫-时间分数
+    panel_name_en: step_score_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_score_maze_l0
+      expr: kaiwu_step_score_maze_l0{}
+    - metrics_name: step_score_maze_l1
+      expr: kaiwu_step_score_maze_l1{}
+    - metrics_name: step_score_maze_l2
+      expr: kaiwu_step_score_maze_l2{}
+    - metrics_name: step_score_maze_l3
+      expr: kaiwu_step_score_maze_l3{}
+    - metrics_name: step_score_maze_l4
+      expr: kaiwu_step_score_maze_l4{}
+    - metrics_name: step_score_maze_l5
+      expr: kaiwu_step_score_maze_l5{}
+    - metrics_name: step_score_maze_l6
+      expr: kaiwu_step_score_maze_l6{}
+    - metrics_name: step_score_maze_l7
+      expr: kaiwu_step_score_maze_l7{}
+    - metrics_name: step_score_maze_l8
+      expr: kaiwu_step_score_maze_l8{}
+    - metrics_name: step_score_maze_l9
+      expr: kaiwu_step_score_maze_l9{}
+  - panel_name: 迷宫-姿态分数
+    panel_name_en: pose_score_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: pose_score_maze_l0
+      expr: kaiwu_pose_score_maze_l0{}
+    - metrics_name: pose_score_maze_l1
+      expr: kaiwu_pose_score_maze_l1{}
+    - metrics_name: pose_score_maze_l2
+      expr: kaiwu_pose_score_maze_l2{}
+    - metrics_name: pose_score_maze_l3
+      expr: kaiwu_pose_score_maze_l3{}
+    - metrics_name: pose_score_maze_l4
+      expr: kaiwu_pose_score_maze_l4{}
+    - metrics_name: pose_score_maze_l5
+      expr: kaiwu_pose_score_maze_l5{}
+    - metrics_name: pose_score_maze_l6
+      expr: kaiwu_pose_score_maze_l6{}
+    - metrics_name: pose_score_maze_l7
+      expr: kaiwu_pose_score_maze_l7{}
+    - metrics_name: pose_score_maze_l8
+      expr: kaiwu_pose_score_maze_l8{}
+    - metrics_name: pose_score_maze_l9
+      expr: kaiwu_pose_score_maze_l9{}
+  - panel_name: 迷宫-能耗分数
+    panel_name_en: energy_score_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: energy_score_maze_l0
+      expr: kaiwu_energy_score_maze_l0{}
+    - metrics_name: energy_score_maze_l1
+      expr: kaiwu_energy_score_maze_l1{}
+    - metrics_name: energy_score_maze_l2
+      expr: kaiwu_energy_score_maze_l2{}
+    - metrics_name: energy_score_maze_l3
+      expr: kaiwu_energy_score_maze_l3{}
+    - metrics_name: energy_score_maze_l4
+      expr: kaiwu_energy_score_maze_l4{}
+    - metrics_name: energy_score_maze_l5
+      expr: kaiwu_energy_score_maze_l5{}
+    - metrics_name: energy_score_maze_l6
+      expr: kaiwu_energy_score_maze_l6{}
+    - metrics_name: energy_score_maze_l7
+      expr: kaiwu_energy_score_maze_l7{}
+    - metrics_name: energy_score_maze_l8
+      expr: kaiwu_energy_score_maze_l8{}
+    - metrics_name: energy_score_maze_l9
+      expr: kaiwu_energy_score_maze_l9{}
+  - panel_name: 迷宫-步数
+    panel_name_en: step_maze
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_maze_l0
+      expr: kaiwu_step_maze_l0{}
+    - metrics_name: step_maze_l1
+      expr: kaiwu_step_maze_l1{}
+    - metrics_name: step_maze_l2
+      expr: kaiwu_step_maze_l2{}
+    - metrics_name: step_maze_l3
+      expr: kaiwu_step_maze_l3{}
+    - metrics_name: step_maze_l4
+      expr: kaiwu_step_maze_l4{}
+    - metrics_name: step_maze_l5
+      expr: kaiwu_step_maze_l5{}
+    - metrics_name: step_maze_l6
+      expr: kaiwu_step_maze_l6{}
+    - metrics_name: step_maze_l7
+      expr: kaiwu_step_maze_l7{}
+    - metrics_name: step_maze_l8
+      expr: kaiwu_step_maze_l8{}
+    - metrics_name: step_maze_l9
+      expr: kaiwu_step_maze_l9{}
+- group_name: Reward指标
+  group_name_en: reward
+  panels:
+  - panel_name: Reward均值
+    panel_name_en: reward_mean
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_mean
+      expr: kaiwu_reward_mean{}
+    - metrics_name: reward_std
+      expr: kaiwu_reward_std{}
+  - panel_name: 跟踪速度奖励
+    panel_name_en: reward_tracking
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_track_lin_vel_xy
+      expr: kaiwu_reward_track_lin_vel_xy{}
+    - metrics_name: reward_track_ang_vel_z
+      expr: kaiwu_reward_track_ang_vel_z{}
+  - panel_name: 能耗奖励
+    panel_name_en: reward_energy
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_joint_vel
+      expr: kaiwu_reward_joint_vel{}
+    - metrics_name: reward_joint_acc
+      expr: kaiwu_reward_joint_acc{}
+    - metrics_name: reward_joint_torques
+      expr: kaiwu_reward_joint_torques{}
+    - metrics_name: reward_action_rate
+      expr: kaiwu_reward_action_rate{}
+    - metrics_name: reward_energy
+      expr: kaiwu_reward_energy{}
+  - panel_name: 安全奖励
+    panel_name_en: reward_safety
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_undesired_contacts
+      expr: kaiwu_reward_undesired_contacts{}
+    - metrics_name: reward_dof_pos_limits
+      expr: kaiwu_reward_dof_pos_limits{}

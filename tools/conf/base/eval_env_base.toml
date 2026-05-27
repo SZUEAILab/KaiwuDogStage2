@@ -1,0 +1,53 @@
+# Base configuration for evaluation.
+# Model architecture dimensions (num_actions / num_proprio_obs / num_scan /
+# num_critic_observations) are NOT placed here — they are defined in
+# agent_ppo/conf/conf.py (StageConfig) as architecture constants because
+# they are fixed by the Isaac Lab task and the network structure.
+# This base file only carries evaluation-wide defaults that users should
+# NOT need to change.
+# 评估基础配置。
+# 模型架构维度 (num_actions / num_proprio_obs / num_scan /
+# num_critic_observations) 不放这里，而是定义在 agent_ppo/conf/conf.py
+# 的 StageConfig 中作为架构常量（由 Isaac Lab 任务和网络结构决定）。
+# 此文件仅承载用户无需改动的评估级默认值。
+
+# === Environment Configuration (fixed) ===
+# === 环境配置（固定值）===
+[env_conf]
+# Isaac Lab task registration name (fixed) | Isaac Lab 任务注册名（固定）
+task_name = "Unitree-Go2-Velocity"
+# Compute device (fixed) | 计算设备（固定）
+device = "cuda:0"
+# Enable Isaac Sim Fabric API for vGPU (fixed) | 启用 Fabric API 适配 vGPU（固定）
+use_fabric = true
+# Save MP4 recordings during evaluation | 评估时保存 MP4 录像
+save_mp4 = true
+
+# === Terrain Defaults (eval-only, user configs can still override) ===
+# === 地形默认值（评估专用，用户配置仍可覆盖）===
+[terrain]
+# Force-disable terrain curriculum for deterministic evaluation.
+# When eval `[terrain] level = [...]` is set, base_env also force-disables
+# curriculum again to guarantee deterministic placement; keeping this default
+# here makes the intent explicit even for old-style eval configs.
+# 评估时强制关闭地形课程学习，保证确定性。
+# 配置 `[terrain] level = [...]` 时 base_env 也会再次强制关闭，此处显式声明用于兜底。
+curriculum = false
+
+# === Track Mode Defaults ===
+# === Track 模式默认值 ===
+# num_parallel_tracks is the number of parallel tracks along Y-axis.
+# For evaluation we default to 10 so `[terrain] level = [0, 1, 2]` means
+# levels 0/1/2 out of ten difficulty tiers instead of three compressed tiers.
+# The framework still auto-extends it when max(level)+1 is greater than this value.
+# 并行赛道数；评估默认 10，确保 `[terrain] level = [0, 1, 2]` 表示十档难度中的低三档，
+# 而不是被压缩成三档难度；当 max(level)+1 更大时，框架仍会自动扩展。
+[terrain.track]
+num_parallel_tracks = 10
+
+# === Policy Configuration ===
+# === 策略配置（仅层级导航生效）===
+[policy]
+# Nav decimation: nav policy runs every N loco steps (default: 1, same as training)
+# Nav 降频：导航策略每 N 个运控步决策一次（默认 1，与训练一致）
+nav_decimation = 1

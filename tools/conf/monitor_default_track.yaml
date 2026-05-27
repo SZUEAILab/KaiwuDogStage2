@@ -1,0 +1,358 @@
+title: 四足机器人-Track导航
+groups:
+# ============================================================
+# 硬件指标
+# ============================================================
+- group_name: "硬件指标"
+  group_name_en: "hardware"
+  panels:
+    - panel_name: "GPU使用率"
+      panel_name_en: "gpu_usage"
+      type: "line"
+      unit: ""
+      custom: ""
+      metrics:
+        - metrics_name: "gpu_usage"
+          expr: "avg_over_time(Device_utilization_desc_of_container[5m]) / 100"
+    - panel_name: "GPU显存使用率"
+      panel_name_en: "gpu_mem_usage"
+      type: "line"
+      unit: ""
+      custom: ""
+      metrics:
+        - metrics_name: "gpu_mem_usage"
+          expr: "round(avg_over_time(vGPU_device_memory_usage_in_bytes[5m]) / vGPU_device_memory_limit_in_bytes, 0.01)"
+
+# ============================================================
+# 全局环境指标（已合并 Track 赛道指标：得分 panel 去 step_score、改加 time_score）
+# 注意：代码中 time_score 即 track 评判的时间分数，其 pushgateway 指标 key 仍为 `step_score`
+# （见 base_scorer.py: episode_step_scores → metrics["step_score_*"]）。
+# 这里 metrics_name 展示为 time_score 以贴合业务语义，但 expr 必须使用 kaiwu_step_score。
+# ============================================================
+- group_name: 全局环境指标
+  group_name_en: env_global
+  panels:
+  - panel_name: 已结束任务数
+    panel_name_en: episode_count
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count
+      expr: kaiwu_completed_count{}
+    - metrics_name: abnormal_count
+      expr: kaiwu_abnormal_count{}
+    - metrics_name: timeout_count
+      expr: kaiwu_timeout_count{}
+  - panel_name: 得分
+    panel_name_en: score
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score
+      expr: kaiwu_total_score{}
+    - metrics_name: energy_score
+      expr: kaiwu_energy_score{}
+    - metrics_name: pose_score
+      expr: kaiwu_pose_score{}
+    - metrics_name: time_score
+      expr: kaiwu_step_score{}
+  - panel_name: 步数
+    panel_name_en: step
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: step_avg
+      expr: kaiwu_step_avg{}
+  - panel_name: Reward均值
+    panel_name_en: reward_mean
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_mean
+      expr: kaiwu_reward_mean{}
+    - metrics_name: reward_std
+      expr: kaiwu_reward_std{}
+
+# ============================================================
+# Track 赛道-难度档（课程升级监控）
+# 每个 track_l{col} 对应一条并行赛道（按难度档分组，col ∈ [0, num_cols)，toml 中 num_cols=10，l9 最难）
+# 指标集合与上方"全局环境指标.得分"panel 保持一致：total / energy / pose / time
+# 另加课程升级必备的三类 episode 计数：completed / abnormal / timeout
+# ============================================================
+- group_name: Track赛道-难度档
+  group_name_en: track_level
+  panels:
+  - panel_name: 赛道-完成数
+    panel_name_en: completed_count_track
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: completed_count_track_l0
+      expr: kaiwu_completed_count_track_l0{}
+    - metrics_name: completed_count_track_l1
+      expr: kaiwu_completed_count_track_l1{}
+    - metrics_name: completed_count_track_l2
+      expr: kaiwu_completed_count_track_l2{}
+    - metrics_name: completed_count_track_l3
+      expr: kaiwu_completed_count_track_l3{}
+    - metrics_name: completed_count_track_l4
+      expr: kaiwu_completed_count_track_l4{}
+    - metrics_name: completed_count_track_l5
+      expr: kaiwu_completed_count_track_l5{}
+    - metrics_name: completed_count_track_l6
+      expr: kaiwu_completed_count_track_l6{}
+    - metrics_name: completed_count_track_l7
+      expr: kaiwu_completed_count_track_l7{}
+    - metrics_name: completed_count_track_l8
+      expr: kaiwu_completed_count_track_l8{}
+    - metrics_name: completed_count_track_l9
+      expr: kaiwu_completed_count_track_l9{}
+  - panel_name: 赛道-失败数
+    panel_name_en: abnormal_count_track
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: abnormal_count_track_l0
+      expr: kaiwu_abnormal_count_track_l0{}
+    - metrics_name: abnormal_count_track_l1
+      expr: kaiwu_abnormal_count_track_l1{}
+    - metrics_name: abnormal_count_track_l2
+      expr: kaiwu_abnormal_count_track_l2{}
+    - metrics_name: abnormal_count_track_l3
+      expr: kaiwu_abnormal_count_track_l3{}
+    - metrics_name: abnormal_count_track_l4
+      expr: kaiwu_abnormal_count_track_l4{}
+    - metrics_name: abnormal_count_track_l5
+      expr: kaiwu_abnormal_count_track_l5{}
+    - metrics_name: abnormal_count_track_l6
+      expr: kaiwu_abnormal_count_track_l6{}
+    - metrics_name: abnormal_count_track_l7
+      expr: kaiwu_abnormal_count_track_l7{}
+    - metrics_name: abnormal_count_track_l8
+      expr: kaiwu_abnormal_count_track_l8{}
+    - metrics_name: abnormal_count_track_l9
+      expr: kaiwu_abnormal_count_track_l9{}
+  - panel_name: 赛道-超时数
+    panel_name_en: timeout_count_track
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: timeout_count_track_l0
+      expr: kaiwu_timeout_count_track_l0{}
+    - metrics_name: timeout_count_track_l1
+      expr: kaiwu_timeout_count_track_l1{}
+    - metrics_name: timeout_count_track_l2
+      expr: kaiwu_timeout_count_track_l2{}
+    - metrics_name: timeout_count_track_l3
+      expr: kaiwu_timeout_count_track_l3{}
+    - metrics_name: timeout_count_track_l4
+      expr: kaiwu_timeout_count_track_l4{}
+    - metrics_name: timeout_count_track_l5
+      expr: kaiwu_timeout_count_track_l5{}
+    - metrics_name: timeout_count_track_l6
+      expr: kaiwu_timeout_count_track_l6{}
+    - metrics_name: timeout_count_track_l7
+      expr: kaiwu_timeout_count_track_l7{}
+    - metrics_name: timeout_count_track_l8
+      expr: kaiwu_timeout_count_track_l8{}
+    - metrics_name: timeout_count_track_l9
+      expr: kaiwu_timeout_count_track_l9{}
+  - panel_name: 赛道-总分
+    panel_name_en: total_score_track
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: total_score_track_l0
+      expr: kaiwu_total_score_track_l0{}
+    - metrics_name: total_score_track_l1
+      expr: kaiwu_total_score_track_l1{}
+    - metrics_name: total_score_track_l2
+      expr: kaiwu_total_score_track_l2{}
+    - metrics_name: total_score_track_l3
+      expr: kaiwu_total_score_track_l3{}
+    - metrics_name: total_score_track_l4
+      expr: kaiwu_total_score_track_l4{}
+    - metrics_name: total_score_track_l5
+      expr: kaiwu_total_score_track_l5{}
+    - metrics_name: total_score_track_l6
+      expr: kaiwu_total_score_track_l6{}
+    - metrics_name: total_score_track_l7
+      expr: kaiwu_total_score_track_l7{}
+    - metrics_name: total_score_track_l8
+      expr: kaiwu_total_score_track_l8{}
+    - metrics_name: total_score_track_l9
+      expr: kaiwu_total_score_track_l9{}
+  - panel_name: 赛道-能耗分数
+    panel_name_en: energy_score_track
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: energy_score_track_l0
+      expr: kaiwu_energy_score_track_l0{}
+    - metrics_name: energy_score_track_l1
+      expr: kaiwu_energy_score_track_l1{}
+    - metrics_name: energy_score_track_l2
+      expr: kaiwu_energy_score_track_l2{}
+    - metrics_name: energy_score_track_l3
+      expr: kaiwu_energy_score_track_l3{}
+    - metrics_name: energy_score_track_l4
+      expr: kaiwu_energy_score_track_l4{}
+    - metrics_name: energy_score_track_l5
+      expr: kaiwu_energy_score_track_l5{}
+    - metrics_name: energy_score_track_l6
+      expr: kaiwu_energy_score_track_l6{}
+    - metrics_name: energy_score_track_l7
+      expr: kaiwu_energy_score_track_l7{}
+    - metrics_name: energy_score_track_l8
+      expr: kaiwu_energy_score_track_l8{}
+    - metrics_name: energy_score_track_l9
+      expr: kaiwu_energy_score_track_l9{}
+  - panel_name: 赛道-姿态分数
+    panel_name_en: pose_score_track
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: pose_score_track_l0
+      expr: kaiwu_pose_score_track_l0{}
+    - metrics_name: pose_score_track_l1
+      expr: kaiwu_pose_score_track_l1{}
+    - metrics_name: pose_score_track_l2
+      expr: kaiwu_pose_score_track_l2{}
+    - metrics_name: pose_score_track_l3
+      expr: kaiwu_pose_score_track_l3{}
+    - metrics_name: pose_score_track_l4
+      expr: kaiwu_pose_score_track_l4{}
+    - metrics_name: pose_score_track_l5
+      expr: kaiwu_pose_score_track_l5{}
+    - metrics_name: pose_score_track_l6
+      expr: kaiwu_pose_score_track_l6{}
+    - metrics_name: pose_score_track_l7
+      expr: kaiwu_pose_score_track_l7{}
+    - metrics_name: pose_score_track_l8
+      expr: kaiwu_pose_score_track_l8{}
+    - metrics_name: pose_score_track_l9
+      expr: kaiwu_pose_score_track_l9{}
+  - panel_name: 赛道-时间分数
+    panel_name_en: time_score_track
+    type: line
+    unit: ''
+    custom: ''
+    # 说明：time_score 的 pushgateway 指标 key 仍为 `step_score_track_l{col}`
+    # （见 base_scorer.py: episode_step_scores → metrics["step_score_track_l{col}"]）。
+    # 这里 metrics_name 展示为 time_score_track_l{col} 以贴合业务语义，
+    # 但 expr 必须使用 kaiwu_step_score_track_l{col} 才能查到数据。
+    metrics:
+    - metrics_name: time_score_track_l0
+      expr: kaiwu_step_score_track_l0{}
+    - metrics_name: time_score_track_l1
+      expr: kaiwu_step_score_track_l1{}
+    - metrics_name: time_score_track_l2
+      expr: kaiwu_step_score_track_l2{}
+    - metrics_name: time_score_track_l3
+      expr: kaiwu_step_score_track_l3{}
+    - metrics_name: time_score_track_l4
+      expr: kaiwu_step_score_track_l4{}
+    - metrics_name: time_score_track_l5
+      expr: kaiwu_step_score_track_l5{}
+    - metrics_name: time_score_track_l6
+      expr: kaiwu_step_score_track_l6{}
+    - metrics_name: time_score_track_l7
+      expr: kaiwu_step_score_track_l7{}
+    - metrics_name: time_score_track_l8
+      expr: kaiwu_step_score_track_l8{}
+    - metrics_name: time_score_track_l9
+      expr: kaiwu_step_score_track_l9{}
+
+# ============================================================
+# Reward指标 - 导航奖励
+# ============================================================
+- group_name: 导航Reward
+  group_name_en: reward_navigation
+  panels:
+  - panel_name: 启发式导航
+    panel_name_en: reward_heuristic_navigation
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_heuristic_navigation
+      expr: kaiwu_reward_heuristic_navigation{}
+  - panel_name: 死胡同逃脱
+    panel_name_en: reward_deadend_escape
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_deadend_escape
+      expr: kaiwu_reward_deadend_escape{}
+  - panel_name: 近墙减速
+    panel_name_en: reward_wall_proximity_brake
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_wall_proximity_brake
+      expr: kaiwu_reward_wall_proximity_brake{}
+  - panel_name: 到达目标
+    panel_name_en: reward_reach_goal
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_reach_goal
+      expr: kaiwu_reward_reach_goal{}
+  - panel_name: 导航时间惩罚
+    panel_name_en: reward_navigation_time
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_navigation_time
+      expr: kaiwu_reward_navigation_time{}
+  - panel_name: 避障惩罚
+    panel_name_en: reward_obstacle_evasion
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_obstacle_evasion
+      expr: kaiwu_reward_obstacle_evasion{}
+
+# ============================================================
+# Reward指标 - 运动奖励
+# ============================================================
+- group_name: 运动Reward
+  group_name_en: reward_locomotion
+  panels:
+  - panel_name: 跟踪速度奖励
+    panel_name_en: reward_tracking
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_track_lin_vel_xy
+      expr: kaiwu_reward_track_lin_vel_xy{}
+    - metrics_name: reward_track_ang_vel_z
+      expr: kaiwu_reward_track_ang_vel_z{}
+  - panel_name: 安全奖励
+    panel_name_en: reward_safety
+    type: line
+    unit: ''
+    custom: ''
+    metrics:
+    - metrics_name: reward_undesired_contacts
+      expr: kaiwu_reward_undesired_contacts{}
+    - metrics_name: reward_dof_pos_limits
+      expr: kaiwu_reward_dof_pos_limits{}
+    - metrics_name: reward_termination
+      expr: kaiwu_reward_termination{}

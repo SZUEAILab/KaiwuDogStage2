@@ -1,0 +1,135 @@
+[project_default]
+
+# === === === === === === === === === === === === === === === === === === === ===
+# The following configurations are used by the framework and are not recommended for modification by users
+# 下面的配置, 由框架使用, 不建议使用者修改
+# === === === === === === === === === === === === === === === === === === === ===
+
+# The following items need to be configured separately for each app
+# 下面的项目是每个app要单独配置的
+app = "legged_robot_competition_26"
+self_play = false
+set_name = "legged_robot_competition_26_set1000"
+self_play_set_name = "legged_robot_competition_26_set1000"
+selfplay_app_conf = "conf/app_conf_legged_robot_competition_26.toml"
+noselfplay_app_conf = "conf/app_conf_legged_robot_competition_26.toml"
+algo_conf = "conf/algo_conf_legged_robot_competition_26.toml"
+
+
+# Training or evaluation mode
+# 训练或者评估模式
+run_mode = "train"
+
+# Algorithm used
+# 采用的算法
+algo = "ppo"
+
+# Model file synchronization interval between learner/actor (recommended to be even multiples)
+# learner/actor之间同步model文件的时间间隔, 建议是偶数倍
+model_file_sync_per_minutes = 2
+
+# Model file loading interval for actor (recommended to be odd multiples)
+# actor加载model文件的时间间隔, 建议是奇数倍
+model_file_load_per_minutes = 3
+
+# Deep learning framework options: tensorflow_simple, tensorflow_complex, tensorrt, pytorch, etc. Default is tensorflow_simple
+# 使用的强化学习框架, 包括tensorflow_simple, tensorflow_complex, tensorrt, pytorch等, 默认是tensorflow_simple
+use_which_deep_learning_framework = "pytorch"
+
+# 预测、利用、加载模型是放在哪里执行的？
+# actor容器里的预测进程remote_actor_predict, 大规模场景下的训练, PVP评估, 大规模指环境数目超过64
+# aisrv容器里的预测进程remote_aisrv_predict, 中等规模场景下使用, 通信开销转换为进程间队列通信开销, 中等规模指环境数目超过8小于64
+# aisrv的工作流所在进程local_aisrv_workflow, 小规模场景下使用, 进程间队列通信开销转换为函数调用, 小规模指环境数目小于8
+remote_agent_default_runtime_mode = "local_aisrv_workflow"
+
+# Standardized integration pattern
+# 接入采用标准化模式
+framework_integration_patterns = "standard"
+
+# AISRV framework using KaiwuEnv
+# 采用接入KaiwuEnv方式
+aisrv_framework = "issac"
+
+# Wrapper types: remote, local, none
+# 采用的wrapper形式, 包括remote, local, none
+wrapper_type = "local"
+
+# Directories to save model files (comma-separated, relative to project root)
+# 在模型文件保存时, 需要保存的文件目录, 多个目录请按照逗号分割, 并且是以项目根目录开始看的
+copy_dir = "conf,agent_ppo,agent_diy,isaac_env"
+
+# Number of kaiwu_env connections per aisrv
+# 单个aisrv连接的kaiwu_env的数目
+aisrv_connect_to_kaiwu_env_count = 1
+
+# Modelpool FIFO size (1 for latest model, e.g. 50 for historical models)
+# model文件FIFO的个数, 如果是采用最新的模型则设置为1; 需要采用历史模型则该值设置为需要的比如50, FIFO模式
+modelpool_max_save_model_count = 1
+
+# Actor prediction batch size
+# actor预测批处理大小
+predict_batch_size = 1
+
+# 采用私有化监控
+monitor_version = "v2"
+learner_should_clear_data = true
+
+# === === === === === === === === === === === === === === === === === === === ===
+# The following configurations can be modified as needed
+# 下面的配置使用者可以按照需要修改
+# === === === === === === === === === === === === === === === === === === === ===
+
+# Below are configurations related to replay buffer
+# 下面是replay buffer的相关配置
+replay_buffer_capacity = 20
+preload_ratio = 1.0
+
+# Logging configurations
+# 下面是日志文件相关配置
+log_dir = "/data/projects/legged_robot_competition_26/log"
+level = "INFO"
+tensorflow_log_level = "INFO"
+
+# Learner training batch size limit
+# learner训练批处理大小限制
+train_batch_size = 20
+
+# Reverb remover policy options: reverb.selectors.Lifo, reverb.selectors.Prioritized, reverb.selectors.Fifo
+# reverb移除策略, 可选项是reverb.selectors.Lifo, reverb.selectors.Prioritized, reverb.selectors.Fifo
+reverb_remover = "reverb.selectors.Fifo"
+
+# Reverb sampler policy options: reverb.selectors.Prioritized, reverb.selectors.Fifo, reverb.selectors.Uniform
+# reverb采样策略, 可选项是reverb.selectors.Prioritized, reverb.selectors.Fifo, reverb.selectors.Uniform
+reverb_sampler = "reverb.selectors.Uniform"
+
+# Preloaded model directory path and ID
+# 预加载模型文件夹路径和ID
+preload_model = false
+preload_model_dir = "/data/ckpt/legged_robot_competition_26_ppo/"
+preload_model_id = 1000
+
+# Model dump frequency (adjust based on actual needs. Too small affects latency, too large causes sync delays)
+# 训练间隔多少步输出model文件, 该值需要根据实际情况调整, 设置过小则会导致落模型耗时长, 影响时延; 如果设置过大则导致learner/actor之间model同步间隔长
+dump_model_freq = 200
+
+# Actor and learner addresses
+# 设置actor和learner地址
+actor_addrs = {train_one = ["127.0.0.1:8888"]}
+learner_addrs = {train_one = ["127.0.0.1:9999"]}
+
+# Evaluation model directory path and ID
+# 评估模式模型文件夹路径和ID
+eval_model_dir = "/data/ckpt/legged_robot_competition_26_ppo/"
+eval_model_id = 0
+
+# no need to get kaiwu_env address
+# 不需要获取到kaiwu_env地址
+get_kaiwu_env_by_alloc = false
+
+# 实现环境代码的文件位置
+env_business_module_name = "tools.base_env"
+# 实现环境的类
+env_business_class_name = "Robot"
+
+# 是否启用文件操作防护(评估模式下保护结果目录不被用户代码篡改, 仅 eval/exam 模式生效)
+wrapper_enable_file_guard = true

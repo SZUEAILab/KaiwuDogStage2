@@ -1,0 +1,145 @@
+# === Basic Configuration ===
+# === 基础配置 ===
+[env]
+# Number of parallel environments (eval uses fewer envs), valid range: [1, 4096]
+# 并行环境数量（评估使用较少环境），合法范围：[1, 4096]
+num_envs = 4
+
+# Maximum episode duration in seconds, valid range: (0, +inf)
+# 最大 episode 时长 (s)，合法范围：(0, +inf)
+episode_length_s = 20.0
+
+[env_conf]
+# Random seed.
+# In eval mode this seed is transferred to terrain_generator.seed, so that
+# terrain tile layout is reproducible under the platform-assigned seed.
+# This value is controlled by the platform during evaluation.
+# 随机种子
+# 评估模式下该 seed 会透传到 terrain_generator.seed，保证在平台指定的
+# seed 下评估地形瓦片布局可复现；评估阶段该字段由平台统一配置。
+seed = 0
+
+[custom_parameters]
+# Number of episodes to run per terrain | 每个地形运行的局数
+episode_nums_per_terrain = 1
+
+# Enable terrain block boundary termination during evaluation.
+# When true, episode is truncated (time_out) when robot walks out of its terrain block (X+Y).
+# This ensures scores only reflect performance within the assigned terrain block.
+# Default: true (evaluation only, always disabled during training).
+# 评估时启用地形块边界终止。为 true 时，机器人走出地形块 X/Y 边界即截断 episode。
+# 确保分数只反映当前地形块内的表现。默认: true（仅评估生效，训练时始终关闭）。
+enable_terrain_bounds_termination = true
+
+
+# === Terrain Configuration ===
+# === 地形配置 ===
+[terrain]
+# Terrain mode for evaluation, valid values: "standard" | "track" | "plane"
+# 评估地形模式，合法值："standard" | "track" | "plane"
+mode = "standard"
+
+# ---------------------------------------------------------------------------
+# Eval-only deterministic placement: level list (recommended)
+# 评估专用确定性放置：level 列表（推荐）
+# ---------------------------------------------------------------------------
+# Specifies which difficulty levels to evaluate (0=easiest, 9=hardest).
+# When `level` is set:
+#   - Standard mode: num_rows = max(level)+1 is auto-computed; num_cols
+#     = len([terrain.standard].sub_terrains). Do NOT set num_rows / num_cols.
+#   - Track  mode: base default num_parallel_tracks=10; it is auto-extended only
+#     when max(level)+1 is larger. Col cycles through level list per env.
+#   - curriculum is force-disabled to keep level assignment deterministic
+#     (curriculum=false is also the default set in eval_env_base.toml).
+#
+# 指定要评估的难度档列表（0=最简单，9=最难）。配置 `level` 后：
+#   - Standard 模式：num_rows = max(level)+1 自动推导；
+#     num_cols = len([terrain.standard].sub_terrains)。请勿再配 num_rows / num_cols。
+#   - Track 模式：base 默认 num_parallel_tracks=10，仅当 max(level)+1 更大时自动扩展；
+#     col 按 level 列表循环分配。
+#   - curriculum 强制关闭（默认值已在 eval_env_base.toml 中声明）。
+level = [0, 1, 3, 4]
+
+# Difficulty range [min, max], valid range: [0.0, 1.0]
+# 难度范围 [min, max]，合法范围：[0.0, 1.0]
+difficulty_range = [0.0, 1.0]
+
+
+# === Standard mode sub-terrains (eval-only list form) ===
+# === Standard 模式子地形（评估专用列表形式）===
+# Use list form (no proportion) for deterministic per-env placement.
+# Each terrain occupies one column; env_i is assigned to
+# (level[(i // len(sub)) % len(level)], sub_terrains[i % len(sub)]).
+# Allowed: pyramid_slope | pyramid_slope_inv | pyramid_stairs | pyramid_stairs_inv | maze
+# 使用列表形式（无 proportion）以实现确定性放置。
+# 每种地形占一列；env_i 被分配到
+# (level[(i // len(sub)) % len(level)], sub_terrains[i % len(sub)])。
+[terrain.standard]
+sub_terrains = [
+    "pyramid_slope",
+    "pyramid_slope_inv",
+    "pyramid_stairs",
+    "pyramid_stairs_inv",
+]
+
+
+# === Domain Randomization ===
+# === 域随机化 ===
+[domain_rand]
+# Disable domain randomization for evaluation | 评估时关闭域随机化
+enable_domain_rand = false
+
+# Disable friction randomization for evaluation | 评估时关闭摩擦随机化
+randomize_friction = false
+
+# Friction range [min, max], valid range: min >= 0
+# 摩擦系数范围（仅在 randomize_friction=true 时生效），合法范围：min >= 0
+friction_range = [0.3, 1.5]
+
+# Disable random push for evaluation | 评估时关闭随机推力
+push_robots = false
+
+# Push interval in seconds (only used when push_robots=true)
+# 推力间隔时间 (s)（仅在 push_robots=true 时生效）
+push_interval_s = 15
+
+# Maximum push velocity (only used when push_robots=true)
+# 最大推力速度（仅在 push_robots=true 时生效）
+max_push_vel_xy = 0.5
+
+
+# === Noise Configuration ===
+# === 噪声配置 ===
+[noise]
+# Disable observation noise for evaluation | 评估时关闭观测噪声
+add_noise = false
+
+
+# === Initial State ===
+# === 初始状态 ===
+[init_state]
+# Standing height valid range: [0.30, 0.60]m, recommended: 0.35m
+# 站立姿态有效范围：[0.30, 0.60]m，推荐值：0.35m
+pos = [0.0, 0.0, 0.35]
+
+
+# === Command Configuration ===
+# === 命令配置 ===
+[commands]
+# Command resampling interval [min, max] in seconds
+# 命令重采样间隔 [min, max] (s)
+resampling_time = [5.0, 5.0]
+
+# Maximum command ranges (velocity limits)
+# 最大命令范围（速度限制）
+[commands.limit]
+lin_vel_x = [-1.0, 1.0]
+lin_vel_y = [-0.4, 0.4]
+ang_vel_z = [-1.0, 1.0]
+
+# Evaluation: use full velocity range so the robot follows velocity commands
+# 评估模式：使用完整速度范围，让机器人根据命令行走
+[commands.ranges]
+lin_vel_x = [-1.0, 1.0]
+lin_vel_y = [-0.4, 0.4]
+ang_vel_yaw = [-1.0, 1.0]

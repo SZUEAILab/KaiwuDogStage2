@@ -1,0 +1,26 @@
+# Base configuration for training.
+# Model architecture dimensions (num_actions / num_proprio_obs / num_scan /
+# num_critic_observations) are NOT placed here — they are defined in
+# agent_ppo/conf/conf.py (StageConfig) as architecture constants because
+# they are fixed by the Isaac Lab task and the network structure.
+# 训练基础配置。
+# 模型架构维度 (num_actions / num_proprio_obs / num_scan /
+# num_critic_observations) 不放这里，而是定义在 agent_ppo/conf/conf.py
+# 的 StageConfig 中作为架构常量（由 Isaac Lab 任务和网络结构决定）。
+
+# === Environment Configuration (fixed) ===
+# === 环境配置（固定值）===
+[env_conf]
+# Isaac Lab task registration name (fixed) | Isaac Lab 任务注册名（固定）
+task_name = "Unitree-Go2-Velocity"
+# Compute device (fixed) | 计算设备（固定）
+device = "cuda:0"
+# Enable Isaac Sim Fabric API for vGPU (fixed) | 启用 Fabric API 适配 vGPU（固定）
+use_fabric = true
+
+# === Policy Configuration ===
+# === 策略配置（仅层级导航生效）===
+[policy]
+# Nav decimation: nav policy runs every N loco steps (default: 1)
+# Nav 降频：导航策略每 N 个运控步决策一次（默认 1，即 Nav 与 Loco 同频）
+nav_decimation = 1

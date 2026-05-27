@@ -1,0 +1,22 @@
+[project_default]
+# 下面的是公共配置, 按需修改
+run_mode = "eval"
+predict_local_or_remote = "remote"
+aisrv_connect_to_kaiwu_env_count = 1
+
+use_alloc = false
+use_rainbow = false
+get_kaiwu_env_by_alloc = false
+
+# 日志轮转设置
+rotation = "10MB"
+retention = 1
+# 是否保存预测数据
+save_predict_data = false
+
+# 关闭模型同步
+need_to_sync = false
+
+# 设置的actor, learner地址
+actor_addrs = {train_one = ["127.0.0.1:8700"], train_two = ["127.0.0.1:8800"]}
+learner_addrs = {train_one = ["127.0.0.1:9999"], train_two = ["127.0.0.1:9999"]}
