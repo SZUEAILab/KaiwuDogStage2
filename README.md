@@ -33,7 +33,7 @@ flowchart LR
 | **Critic MLP** | [512 → 256 → 128] → 1 | [256 → 128 → 64] → 1 |
 | **隐藏层激活** | ELU | ELU |
 | **Actor 输出层** | Linear (无界 raw) | Linear → Tanh → 仿射映射 |
-| **Actor 输出范围** | (-∞, +∞) | [cmd_lower, cmd_upper]，如 vx∈[0, 0.8] |
+| **Actor 输出范围** | (-∞, +∞) | [cmd_lower, cmd_upper]，如 vx∈[-0.8, 0.8] |
 | **Actor LayerNorm** | 无 | 每个隐藏层后有 |
 | **Critic LayerNorm** | 隐藏层后有 | 隐藏层后有 |
 | **Actor 权重初始化** | 默认 PyTorch init | 正交初始化 (gain=0.01) |
@@ -114,7 +114,7 @@ _build_nav_critic_obs(critic_obs):
 
 ### 关键设计决策
 
-- **Nav 输出不对称有界**: Tanh 压缩输出到 [-1, 1]，再仿射映射到 [cmd_lower, cmd_upper]。`vx ∈ [0, 0.8]` 禁止后退，`vy ∈ [-0.3, 0.3]`、`wz ∈ [-1.5, 1.5]` 保留对称范围
+- **Nav 输出有界**: Tanh 压缩输出到 [-1, 1]，再仿射映射到 [cmd_lower, cmd_upper]。`vx ∈ [-0.8, 0.8]`、`vy ∈ [-0.3, 0.3]`、`wz ∈ [-1.5, 1.5]`
 - **Nav Actor 没有 base_lin_vel**: 线速度只在 critic_obs 中，是特权信息。nav actor 只用 `base_ang_vel + projected_gravity`，训推一致
 - **Nav Actor 没有 velocity_cmd**: policy_obs[6:9] 的 velocity_cmd 来自环境 command_manager 的随机采样，跟 nav 输出无关，是噪声
 - **Nav Critic 有 base_lin_vel**: 不对称 Actor-Critic，critic 用特权信息把 value 估得更准
