@@ -355,7 +355,7 @@ def _compute_advantages_and_returns(storage, agent, critic_obs, logger):
     """
     last_critic_obs = torch.clone(critic_obs)
     if getattr(agent, "is_hierarchical", False):
-        agent.algorithm.compute_returns(last_critic_obs)
+        agent.algorithm.compute_gae_returns(last_critic_obs)
     else:
         last_values = agent.algorithm.actor_critic.evaluate(last_critic_obs.detach()).detach()
         storage.compute_returns(last_values, agent.algorithm.gamma, agent.algorithm.lam)

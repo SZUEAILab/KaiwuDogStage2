@@ -201,7 +201,7 @@ class AlgorithmHierNav:
             dim=-1,
         )
 
-    def compute_returns(self, last_critic_obs: torch.Tensor):
+    def compute_gae_returns(self, last_critic_obs: torch.Tensor):
         with torch.no_grad():
             nav_critic_obs = self._build_nav_critic_obs(last_critic_obs)
             last_values = self.nav_model.evaluate(nav_critic_obs)
