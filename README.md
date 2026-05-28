@@ -33,7 +33,7 @@ flowchart LR
 | **Critic MLP** | [512 → 256 → 128] → 1 | [256 → 128 → 64] → 1 |
 | **隐藏层激活** | ELU | ELU |
 | **Actor 输出层** | Linear (无界 raw) | Linear → Tanh → 仿射映射 |
-| **Actor 输出范围** | (-∞, +∞) | [cmd_lower, cmd_upper]，如 vx∈[-0.8, 0.8] |
+| **Actor 输出范围** | (-∞, +∞) | [cmd_lower, cmd_upper]，hier_nav: vx=1.5(固定),vy∈[-0.8,0.8],wz∈[-1.5,1.5] |
 | **Actor LayerNorm** | 无 | 每个隐藏层后有 |
 | **Critic LayerNorm** | 隐藏层后有 | 隐藏层后有 |
 | **Actor 权重初始化** | 默认 PyTorch init | 正交初始化 (gain=0.01) |
@@ -114,7 +114,7 @@ _build_nav_critic_obs(critic_obs):
 
 ### 关键设计决策
 
-- **Nav 输出有界**: Tanh 压缩输出到 [-1, 1]，再仿射映射到 [cmd_lower, cmd_upper]。`vx ∈ [-0.8, 0.8]`、`vy ∈ [-0.3, 0.3]`、`wz ∈ [-1.5, 1.5]`
+- **Nav 输出有界**: Tanh 压缩输出到 [-1, 1]，再仿射映射到 [cmd_lower, cmd_upper]。hier_nav: `vx=1.5(固定)`、`vy∈[-0.8, 0.8]`、`wz∈[-1.5, 1.5]`；hier_nav_maze: `vx∈[-0.8, 0.8]`、`vy∈[-0.3, 0.3]`
 - **Nav Actor 没有 base_lin_vel**: 线速度只在 critic_obs 中，是特权信息。nav actor 只用 `base_ang_vel + projected_gravity`，训推一致
 - **Nav Actor 没有 velocity_cmd**: policy_obs[6:9] 的 velocity_cmd 来自环境 command_manager 的随机采样，跟 nav 输出无关，是噪声
 - **Nav Critic 有 base_lin_vel**: 不对称 Actor-Critic，critic 用特权信息把 value 估得更准
@@ -130,39 +130,36 @@ _build_nav_critic_obs(critic_obs):
 
 | 格式 | 内容 | 产生方式 |
 |------|------|---------|
-| 扁平 | `ActorCritic.state_dict()` — 参数名直接映射 | standard / track e2e 阶段 `save_model` |
-| 层级 | `{"loco_model": ..., "nav_model": ...}` — 两个 dict | hier_nav 阶段 `save_model` |
+| 层级 | `{"loco_model": ..., "nav_model": ...}` | 所有 `save_model` 统一输出（nav 可能为空 `{}`） |
+
+> 加载兼容扁平旧格式 `ActorCritic.state_dict()`，自动升级为分层。
 
 ### 加载行为
 
 ```mermaid
 flowchart TD
-    load["load_model(path)"] --> is_hier{"当前模式?"}
+    load["load_model(path)"] --> detect{"checkpoint 格式?"}
 
-    is_hier -->|"hier_nav"| hier_type{"checkpoint 格式?"}
-    is_hier -->|"flat"| flat_type{"checkpoint 格式?"}
+    detect -->|"层级<br/>{loco_model, nav_model}"| hier["提取 loco + nav"]
+    detect -->|"扁平(旧)<br/>ActorCritic state_dict"| legacy["升级为分层<br/>loco=state_dict, nav={}"]
 
-    hier_type -->|"层级<br/>{loco_model, nav_model}"| has_nav{"有 nav_model?"}
-    hier_type -->|"扁平<br/>ActorCritic state_dict"| hier_flat["加载为 loco<br/>nav 从头训"]
+    hier --> dispatch{"当前模式?"}
+    legacy --> dispatch
 
-    has_nav -->|"有"| hier_full["加载 loco + nav<br/>续训"]
-    has_nav -->|"无"| hier_loco["加载 loco<br/>nav 从头训"]
-
-    flat_type -->|"层级"| flat_extract["提取 loco_model<br/>忽略 nav_model<br/>→ 回退运控训练"]
-    flat_type -->|"扁平"| flat_direct["直接加载"]
+    dispatch -->|"hier_nav"| hier_out["加载 loco(冻结) + nav(训练)"]
+    dispatch -->|"flat"| flat_out["加载 loco(训练) + 缓存 nav(保存时保留)"]
 ```
 
 ### 日志关键字
 
-| 日志前缀 | 含义 |
-|---------|------|
-| `[HierLoad] Hierarchical checkpoint detected` | 加载层级 ckpt |
-| `[HierLoad] nav_model weights found` | 成功加载 nav |
-| `[HierLoad] No nav_model in checkpoint` | ckpt 缺 nav，从头训 |
-| `[HierLoad] Flat checkpoint` | 从扁平 ckpt 提取 loco |
-| `[FlatLoad] Hierarchical checkpoint` | flat 模式加载层级 ckpt，提 loco 丢 nav |
-| `exact match` | 权重形状完全匹配 |
-| `partial` | 权重形状不匹配，按最小维度裁剪加载 |
+| 日志 | 含义 |
+|------|------|
+| `[Load] Hierarchical checkpoint` | 检测到分层 ckpt |
+| `[Load] Legacy flat checkpoint → upgrading` | 检测到旧扁平 ckpt，自动升级 |
+| `[Load] loco/nav weights loaded (exact match)` | 权重完全匹配 |
+| `[Load] loco/nav weights loaded (partial)` | 权重形状不匹配，裁剪加载 |
+| `[Load] No nav_model in checkpoint` | ckpt 缺 nav，nav 从头训 |
+| `[Load] nav_model cached` | flat 模式缓存 nav，保存时保留 |
 
 ### 典型工作流
 
@@ -175,9 +172,11 @@ Config.CURRENT = TrackHierNavMazeConfig
 # 日志: [HierLoad] Flat checkpoint → loading as loco only. Nav will train from scratch.
 
 # 3. 续训 hier_nav，加载层级 ckpt（含 nav）
+Config.CURRENT = TrackHierNavConfig
 # 日志: [HierLoad] nav_model weights found — loading nav from checkpoint
 
-# 4. 回退 standard 继续训运控，从层级 ckpt 提取 loco
+# 4. 回退 standard 继续训运控，从层级 ckpt 提取 loco，缓存 nav → 保存时自动恢复分层格式
 Config.CURRENT = AllTerrainConfig
-# 日志: [FlatLoad] Hierarchical checkpoint → extracting loco_model, nav_model ignored
+# 日志: [FlatLoad] Hierarchical checkpoint → extracting loco_model, nav_model cached for save
+# 保存始终输出层级格式 {"loco_model": ..., "nav_model": ...}，后续 track 可直接续训
 ```

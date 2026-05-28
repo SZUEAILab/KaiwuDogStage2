@@ -33,6 +33,7 @@ class Agent(BaseAgent):
         self.device = device
         self.logger = logger
         self.monitor = monitor
+        self._cached_nav_state = None
 
         usr_conf, usr_conf_file, is_eval, stage = Config.load_conf(self.logger)
         valid, message = check_usr_conf(usr_conf, is_eval, self.logger)
@@ -320,11 +321,13 @@ class Agent(BaseAgent):
 
     def save_model(self, path=None, id="1"):
         """
-        Save model checkpoint.
-        保存模型 checkpoint。
+        Save model checkpoint — always in hierarchical format.
+        保存模型 checkpoint —— 始终使用分层格式。
 
-        Hierarchical mode: saves nav model (trainable).
-        Flat mode: saves the single LocoActorCritic.
+        Flat mode upgrades to hierarchical: self.model → loco_model,
+        cached nav (if any) → nav_model.
+        扁平模式自动升级为分层格式：self.model → loco_model，
+        缓存的 nav（如有）→ nav_model。
         """
         model_file_path = f"{path}/model.ckpt-{str(id)}.pkl"
         if getattr(self, "is_hierarchical", False):
@@ -333,20 +336,23 @@ class Agent(BaseAgent):
                 "loco_model": self.loco_model.state_dict(),
             }
         else:
-            state = self.model.state_dict()
+            state = {
+                "loco_model": self.model.state_dict(),
+                "nav_model": self._cached_nav_state if self._cached_nav_state is not None else {},
+            }
+            self.logger.info("[FlatSave] Upgrading to hierarchical format on save")
         torch.save(state, model_file_path)
         self.logger.info(f"save model {model_file_path} successfully")
 
     def load_model(self, path=None, id="1"):
         """
-        Load model checkpoint.
-        加载模型 checkpoint。
+        Load model checkpoint — unified path, always treats result as hierarchical.
+        加载模型 checkpoint —— 统一路径，始终按分层结构处理。
 
-        Hierarchical mode: loads loco_model + optional nav_model from hierarchical
-        checkpoint, or falls back to loading loco from a flat locomotion checkpoint.
-        If nav_model weights are missing in the checkpoint, logs the absence.
-        层级模式：从层级 checkpoint 加载 loco_model + 可选 nav_model，
-        或从扁平运控 checkpoint 加载 loco。缺失 nav 权重时记录日志。
+        Detects format automatically:
+        - Hierarchical {"loco_model": ..., "nav_model": ...} → use as-is
+        - Legacy flat → upgrade: wrap as loco_model, nav empty
+        自动识别格式：分层直接用，扁平旧格式升级为分层。
         """
         model_file_path = f"{path}/model.ckpt-{str(id)}.pkl"
         if self.cur_model_name == model_file_path:
@@ -354,54 +360,41 @@ class Agent(BaseAgent):
             return
 
         pretrained = torch.load(model_file_path, map_location=self.device)
-
-        if getattr(self, "is_hierarchical", False):
-            self._load_hier_weights(pretrained, model_file_path)
-        else:
-            self._load_flat_weights(pretrained, model_file_path)
-
+        self._load_weights(pretrained, model_file_path)
         self.cur_model_name = model_file_path
 
-    def _load_hier_weights(self, pretrained, model_file_path):
+    def _load_weights(self, pretrained, model_file_path):
         """
-        Load weights for hierarchical mode.
-
-        Supports two checkpoint formats:
-        1. Hierarchical dict {"loco_model": ..., "nav_model": ...} — loads both.
-           Logs which parts are present/missing.
-        2. Flat LocoActorCritic state_dict — treated as loco weights (legacy).
-           Logs that nav will train from scratch.
+        Unified weight loading — auto-detect format, flat is upgraded to hierarchical.
+        统一权重加载 —— 自动检测格式，扁平升级为分层。
         """
         is_hier_ckpt = isinstance(pretrained, dict) and "loco_model" in pretrained
 
         if is_hier_ckpt:
-            # Hierarchical checkpoint
             loco_state = pretrained["loco_model"]
-            self.logger.warning(
-                f"[HierLoad] Hierarchical checkpoint detected at {model_file_path}"
-            )
-
-            if "nav_model" in pretrained and pretrained["nav_model"]:
-                self._load_nav_weights(pretrained["nav_model"])
-            else:
-                self.logger.warning(
-                    "[HierLoad] No nav_model in checkpoint — nav will train from scratch"
-                )
+            nav_state = pretrained.get("nav_model", None)
+            self.logger.info(f"[Load] Hierarchical checkpoint at {model_file_path}")
         else:
-            # Legacy: flat checkpoint → use as loco weights
             loco_state = pretrained
+            nav_state = None
             self.logger.warning(
-                f"[HierLoad] Flat checkpoint at {model_file_path} → loading as loco only. "
-                "Nav will train from scratch."
+                f"[Load] Legacy flat checkpoint at {model_file_path} → upgrading to hierarchical"
             )
 
-        # Load loco weights
-        self._load_component_weights(self.loco_model, loco_state, model_file_path, component="loco")
+        # Load loco into the right target
+        loco_target = self.loco_model if getattr(self, "is_hierarchical", False) else self.model
+        self._load_component_weights(loco_target, loco_state, model_file_path, component="loco")
 
-    def _load_nav_weights(self, nav_state):
-        """Load nav model weights and log the result."""
-        self.logger.warning("[HierLoad] nav_model weights found — loading nav from checkpoint")
-        self._load_component_weights(self.nav_model, nav_state, "checkpoint", component="nav")
+        # Load or cache nav
+        if getattr(self, "is_hierarchical", False):
+            if nav_state:
+                self._load_component_weights(self.nav_model, nav_state, model_file_path, component="nav")
+            else:
+                self.logger.warning("[Load] No nav_model in checkpoint — nav will train from scratch")
+        else:
+            self._cached_nav_state = nav_state
+            if nav_state:
+                self.logger.info("[Load] nav_model cached — will be preserved on save")
 
     def _load_component_weights(self, model, pretrained, model_file_path, component="model"):
         """Load weights into a model component with mismatch detection and logging."""
@@ -415,39 +408,10 @@ class Agent(BaseAgent):
 
         if not has_mismatch:
             model.load_state_dict(pretrained)
-            self.logger.warning(f"[HierLoad] {component} weights loaded (exact match) from {model_file_path}")
+            self.logger.info(f"[Load] {component} weights loaded (exact match) from {model_file_path}")
         else:
             self._load_model_partial(model, pretrained, model_file_path)
-            self.logger.warning(f"[HierLoad] {component} weights loaded (partial) from {model_file_path}")
-
-    def _load_loco_weights(self, pretrained, model_file_path):
-        """
-        DEPRECATED: use _load_hier_weights instead.
-        Kept for backward compatibility.
-        """
-        if isinstance(pretrained, dict) and "loco_model" in pretrained:
-            pretrained = pretrained["loco_model"]
-
-        self._load_component_weights(self.loco_model, pretrained, model_file_path, component="loco")
-
-    def _load_flat_weights(self, pretrained, model_file_path):
-        """
-        Load weights for flat (single-model) mode.
-
-        Supports:
-        1. Flat checkpoint → load directly
-        2. Hierarchical checkpoint → extract loco_model, ignore nav
-        """
-        is_hier_ckpt = isinstance(pretrained, dict) and "loco_model" in pretrained
-
-        if is_hier_ckpt:
-            self.logger.warning(
-                f"[FlatLoad] Hierarchical checkpoint at {model_file_path} "
-                "→ extracting loco_model, nav_model ignored"
-            )
-            pretrained = pretrained["loco_model"]
-
-        self._load_component_weights(self.model, pretrained, model_file_path, component="model")
+            self.logger.info(f"[Load] {component} weights loaded (partial) from {model_file_path}")
 
     def _load_model_partial(self, model, pretrained, model_file_path):
         """
