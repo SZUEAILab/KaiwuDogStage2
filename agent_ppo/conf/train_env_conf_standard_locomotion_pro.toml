@@ -149,6 +149,10 @@ ang_vel_yaw = [-1.0, 1.0]
 
 # =====================================================================
 # Reward Configuration
+# 奖励配置
+#
+# Each reward term must have a numeric `weight`; parameterized rewards use [rewards.<name>.params].
+# 每个奖励项必须包含数值型 weight；带参数的奖励用 [rewards.<name>.params] 配置
 # =====================================================================
 
 # --- Positive: velocity tracking ---
@@ -156,11 +160,15 @@ ang_vel_yaw = [-1.0, 1.0]
 [rewards.track_lin_vel_xy]
 weight = 1.0
 [rewards.track_lin_vel_xy.params]
+# Std of Gaussian kernel, controls how sharp the error → reward decay is.
+# 高斯核标准差，控制误差 → 奖励的衰减陡峭程度
 std = 0.25
+# Velocity command name.
+# 速度命令名
 command_name = "base_velocity"
 
 [rewards.track_ang_vel_z]
-weight = 0.3
+weight = 0.5
 [rewards.track_ang_vel_z.params]
 std = 0.25
 command_name = "base_velocity"
@@ -176,32 +184,46 @@ command_name = "base_velocity"
 # --- Negative: base stability ---
 # --- 负向：基座稳定 ---
 [rewards.lin_vel_z]
-weight = -1.5
+# Penalty on vertical linear velocity.
+# Z 方向线速度惩罚（抑制上下跳跃）
+weight = -2.0
 
 [rewards.ang_vel_xy]
-weight = -0.1
+# Penalty on pitch/roll angular velocity.
+# X/Y 方向角速度惩罚（抑制 pitch/roll 抖动）
+weight = -0.05
 
 # --- Negative: joint smoothness ---
-# --- 负向：关节平滑 ---
+# --- 负向：关节 ---
 [rewards.joint_acc]
+# Joint acceleration penalty.
+# 关节加速度惩罚
 weight = -2.5e-7
 
 [rewards.joint_torques]
-weight = -5e-5  # Slightly stronger torque penalty
+# Joint torque penalty.
+# 关节扭矩惩罚
+weight = -1e-4
 
 [rewards.dof_pos_limits]
+# Penalty when joints approach position limits.
+# 接近关节位置极限时的惩罚
 weight = -2.0
 
 # --- Negative: action smoothness ---
 # --- 负向：动作平滑 ---
 [rewards.action_rate]
-weight = -0.02  # Stronger action smoothing
+# Delta between consecutive actions (1st order).
+# 相邻动作差（一阶）
+weight = -0.01
 
 # --- Negative: undesired contacts ---
 # --- 负向：碰撞 ---
 [rewards.undesired_contacts]
 weight = -1.0
 [rewards.undesired_contacts.params]
+# Max allowed contacts before penalty kicks in.
+# 触发阈值：被罚前允许的最大接触数
 threshold = 1
 
 # --- Negative: feet stumble (stair edge collision) ---
@@ -223,3 +245,17 @@ weight = -2.0  # Stronger orientation penalty for stairs
 # --- 额外：终止惩罚 ---
 [rewards.termination]
 weight = -1.0
+
+[rewards.reach_goal]
+# Reach-goal reward example (active only when env.goal_positions is maintained, i.e. track terrain).
+# 到达目标奖励示例（仅在 track 地形下 env.goal_positions 被维护时生效）。
+weight = 10.0
+[rewards.reach_goal.params]
+threshold = 0.6
+
+# TODO: you can add non-IsaacLab locomotion rewards such as energy /
+# correct_base_height / feet_stumble as needed.
+# After implementing the corresponding _reward_<name> method in
+# agent_ppo/feature/reward_process.py, you can activate it here.
+# TODO：可按需补充 energy / correct_base_height / feet_stumble 等非 IsaacLab 运控奖励。
+# 自行在 agent_ppo/feature/reward_process.py 实现对应 _reward_<name> 方法后即可在此激活。

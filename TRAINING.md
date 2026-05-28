@@ -8,7 +8,7 @@
 
 | 子阶段 | 配置文件 | Config 类 | 地形 | 特点 |
 |---|---|---|---|---|
-| all_terrain | `train_env_conf_standard_all_terrain.toml` | `AllTerrainConfig` | 5 种地形均衡 | 推荐起步，全面 |
+| locomotion_pro | `train_env_conf_standard_locomotion_pro.toml` | `LocomotionProConfig` | 5 种地形均衡 | 推荐起步，全面 |
 | locomotion | `train_env_conf_standard_locomotion.toml` | `LocomotionConfig` | 5 种地形混合 | 下楼梯权重 30% |
 | upstairs | `train_env_conf_standard_upstairs.toml` | `UpstairsConfig` | 100% 上楼梯 | 专注训练 |
 | maze | `train_env_conf_standard_maze.toml` | `MazeConfig` | 100% 迷宫 | 运控 + 反应避障 |
@@ -45,7 +45,7 @@
 
 ```python
 # 运控训练
-Config.CURRENT = AllTerrainConfig     # 全地形
+Config.CURRENT = LocomotionProConfig     # 全地形
 Config.CURRENT = UpstairsConfig       # 上楼梯
 Config.CURRENT = MazeConfig           # 迷宫
 

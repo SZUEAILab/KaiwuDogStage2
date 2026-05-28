@@ -129,37 +129,17 @@ class UpstairsConfig(StageConfig):
     min_normalized_std = [0.1, 0.05, 0.1] * 4
 
 
-class UpstairsE2EConfig(StageConfig):
+class LocomotionProConfig(StageConfig):
     """
-    Stage: upstairs_e2e — end-to-end forward locomotion on stairs (no command tracking).
-    阶段：upstairs_e2e —— 端到端楼梯前向运动（无指令跟踪）。
-
-    Policy learns to walk forward on stairs without velocity commands.
-    Primary reward is world-frame x-velocity.
-    策略直接学习在楼梯上前进，无速度指令。
-    """
-
-    name = "upstairs_e2e"
-    task_type = "standard"
-
-    lr = 1e-4
-    num_steps_per_env = 64
-    num_learning_epochs = 3
-    num_mini_batches = 8
-    min_normalized_std = [0.1, 0.05, 0.1] * 4
-
-
-class AllTerrainConfig(StageConfig):
-    """
-    Stage: all_terrain — comprehensive locomotion training on all sub-terrains.
-    阶段：all_terrain —— 在所有子地形上综合训练基本运动策略。
+    Stage: locomotion_pro — comprehensive locomotion training on all sub-terrains.
+    阶段：locomotion_pro —— 在所有子地形上综合训练基本运动策略。
 
     Uses all 5 sub-terrain types and comprehensive rewards to learn
     robust locomotion (forward, lateral, turning, stair ascent/descent).
     使用全部 5 种子地形和综合奖励，学习鲁棒的运动策略。
     """
 
-    name = "all_terrain"
+    name = "locomotion_pro"
     task_type = "standard"
 
     # Moderate learning rate for stable all-terrain training
@@ -226,8 +206,8 @@ class TrackHierNavConfig(StageConfig):
     cmd_indices = (6, 9)
 
     # Nav output bounds per dim [vx, vy, wz].
-    cmd_upper = [0.8, 0.3, 1.5]
-    cmd_lower = [-0.8, -0.3, -1.5]
+    cmd_upper = [1.5, 0.8, 1.5]
+    cmd_lower = [1.5, -0.8, -1.5]
 
     lr = 1e-4
 
@@ -292,7 +272,7 @@ class Config:
 
     # Switch stage by changing CURRENT
     # 通过修改 CURRENT 切换阶段
-    CURRENT = TrackHierNavMazeConfig
+    CURRENT = TrackHierNavConfig
 
     @staticmethod
     def load_conf(logger):

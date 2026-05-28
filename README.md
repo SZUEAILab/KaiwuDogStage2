@@ -165,7 +165,7 @@ flowchart TD
 
 ```python
 # 1. standard 训运控
-Config.CURRENT = AllTerrainConfig
+Config.CURRENT = LocomotionProConfig
 
 # 2. 切换 hier_nav，自动从 flat ckpt 加载 loco
 Config.CURRENT = TrackHierNavMazeConfig
@@ -176,7 +176,7 @@ Config.CURRENT = TrackHierNavConfig
 # 日志: [HierLoad] nav_model weights found — loading nav from checkpoint
 
 # 4. 回退 standard 继续训运控，从层级 ckpt 提取 loco，缓存 nav → 保存时自动恢复分层格式
-Config.CURRENT = AllTerrainConfig
+Config.CURRENT = LocomotionProConfig
 # 日志: [FlatLoad] Hierarchical checkpoint → extracting loco_model, nav_model cached for save
 # 保存始终输出层级格式 {"loco_model": ..., "nav_model": ...}，后续 track 可直接续训
 ```
