@@ -177,23 +177,9 @@ class RewardProcess(RewardProcessBase):
         return failure.float()
 
     # =========================================================================
-    # PPO-only rewards (locomotion / e2e)
-    # PPO 独有奖励（运控 / e2e）
+    # PPO-only rewards (locomotion)
+    # PPO 独有奖励（运控）
     # =========================================================================
-
-    def _reward_forward_velocity_world(self):
-        """Forward velocity reward: x-direction velocity in world frame.
-        前向速度奖励：世界坐标系下 x 方向速度。
-        """
-        asset = self._get_robot_asset()
-        return asset.data.root_lin_vel_w[:, 0]
-
-    def _reward_forward_velocity_relative(self):
-        """Forward velocity reward: x-direction velocity in robot body frame.
-        前向速度奖励：机器人本体坐标系下 x 方向速度。
-        """
-        asset = self._get_robot_asset()
-        return asset.data.root_lin_vel_b[:, 0]
 
     def _reward_energy(self):
         """Penalize energy consumption (torque × joint velocity).

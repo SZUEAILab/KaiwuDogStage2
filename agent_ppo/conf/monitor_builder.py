@@ -154,7 +154,7 @@ def build_monitor():
         .end_panel()
         .end_group()
         # ==============================================================
-        # Group 5: 奖励-运控
+        # Group 5: 奖励-运控 (velocity tracking / stability / efficiency)
         # ==============================================================
         .add_group(group_name="奖励-运控", group_name_en="reward_locomotion")
         .add_panel(
@@ -185,7 +185,7 @@ def build_monitor():
             name="失败惩罚",
             name_en="reward_termination",
             type="line",
-            description="机器人终止(摔倒/超时)的惩罚(负值，趋近0:好)。绝对值大:大量机器人在本回合提前终止。正常:逐渐趋近0。持续为较大负值:频繁摔倒，环境过难或策略未收敛。配合奖励均值/回合总奖励诊断。",
+            description="真正失败(摔倒/翻车等)的终止惩罚，排除超时和到达目标(负值，趋近0:好)。绝对值大:大量机器人真正摔倒。正常:逐渐趋近0。配合episode_len_mean:步数短+惩罚大=摔倒为主；步数长+惩罚小=超时为主。",
         )
         .add_metric(metrics_name="reward_termination", expr="avg(reward_termination{})")
         .end_panel()
@@ -198,20 +198,20 @@ def build_monitor():
         .add_metric(metrics_name="reward_undesired_contacts", expr="avg(reward_undesired_contacts{})")
         .end_panel()
         .add_panel(
-            name="脚部绊倒",
-            name_en="reward_feet_stumble",
-            type="line",
-            description="脚撞台阶边缘/垂直面的惩罚(负值，趋近0:好)。在楼梯地形中尤其关键。绝对值大:步态不适应台阶。正常:逐渐趋近0。",
-        )
-        .add_metric(metrics_name="reward_feet_stumble", expr="avg(reward_feet_stumble{})")
-        .end_panel()
-        .add_panel(
-            name="动作平滑",
+            name="动作平滑-一阶",
             name_en="reward_action_rate",
             type="line",
-            description="相邻动作变化(一阶平滑)的惩罚(负值，趋近0:好)。绝对值大:关节指令剧烈抖动，步态不流畅。正常:逐渐趋近0。一直很大:策略输出震荡，需增大该惩罚权重。",
+            description="相邻动作变化的惩罚(一阶，负值，趋近0:好)。绝对值大:关节指令剧烈抖动，步态不流畅。正常:逐渐趋近0。一直很大:策略输出震荡，需增大该惩罚权重。",
         )
         .add_metric(metrics_name="reward_action_rate", expr="avg(reward_action_rate{})")
+        .end_panel()
+        .add_panel(
+            name="动作平滑-二阶",
+            name_en="reward_action_smoothness",
+            type="line",
+            description="动作加速度(二阶变化率)的惩罚(负值，趋近0:好)。绝对值大:关节指令忽快忽慢，步态生硬。正常:逐渐趋近0。配合一阶平滑指标:一阶大则关节抖; 二阶大则加减速过程不流畅。",
+        )
+        .add_metric(metrics_name="reward_action_smoothness", expr="avg(reward_action_smoothness{})")
         .end_panel()
         .add_panel(
             name="关节力矩",
@@ -222,16 +222,77 @@ def build_monitor():
         .add_metric(metrics_name="reward_joint_torques", expr="avg(reward_joint_torques{})")
         .end_panel()
         .add_panel(
-            name="能耗",
+            name="能耗-线性",
             name_en="reward_energy",
             type="line",
-            description="能耗惩罚(torque*joint_vel，负值，趋近0:好)。绝对值大:步态耗能高/关节发力猛。正常:逐渐趋近0，策略学会节能步态。始终很大:步态低效，考虑增大该权重；趋近0后性能不降:已学到高效步态。",
+            description="能耗惩罚(torque*joint_vel，负值，趋近0:好)。绝对值大:步态耗能高/关节发力猛。正常:逐渐趋近0，策略学会节能步态。始终很大:步态低效，考虑增大该权重。",
         )
         .add_metric(metrics_name="reward_energy", expr="avg(reward_energy{})")
         .end_panel()
+        .add_panel(
+            name="能耗-指数",
+            name_en="reward_energy_exp",
+            type="line",
+            description="能耗效率指数奖励(正值，趋近1.0:好)。exp(-scale*mean_power)，越节能越接近1.0。与线性能耗互补:线性惩罚高功耗，指数奖励高效步态。正常:逐渐升高趋近1.0。始终很低:步态低效耗能高。",
+        )
+        .add_metric(metrics_name="reward_energy_exp", expr="avg(reward_energy_exp{})")
+        .end_panel()
         .end_group()
         # ==============================================================
-        # Group 6: 奖励-导航
+        # Group 6: 奖励-步态与对称 (gait quality / symmetry)
+        # ==============================================================
+        .add_group(group_name="奖励-步态与对称", group_name_en="reward_gait_symmetry")
+        .add_panel(
+            name="脚部滞空时间",
+            name_en="reward_feet_air_time",
+            type="line",
+            description="脚部离地滞空时间的正奖励(正值，越高越好)。仅在移动中给予，鼓励踏实的完整步态而非慌张碎步。正常:逐渐升高趋近上限。始终很低:策略在用碎步/拖地，步态质量差；在上楼梯地形中尤为关键。",
+        )
+        .add_metric(metrics_name="reward_feet_air_time", expr="avg(reward_feet_air_time{})")
+        .end_panel()
+        .add_panel(
+            name="脚部绊倒",
+            name_en="reward_feet_stumble",
+            type="line",
+            description="脚撞台阶边缘/垂直面的惩罚(负值，趋近0:好)。在楼梯地形中尤其关键。绝对值大:步态不适应台阶。正常:逐渐趋近0。",
+        )
+        .add_metric(metrics_name="reward_feet_stumble", expr="avg(reward_feet_stumble{})")
+        .end_panel()
+        .add_panel(
+            name="步态对称-时间",
+            name_en="reward_air_time_variance_penalty",
+            type="line",
+            description="四脚滞空时间方差的惩罚(负值，趋近0:好)。方差大=左右脚节奏不一致(瘸腿)。上楼梯中不对称步态导致重心偏移侧翻。正常:逐渐趋近0。一直为大负值:策略偏好单侧发力，需启用对称约束。",
+        )
+        .add_metric(metrics_name="reward_air_time_variance_penalty", expr="avg(reward_air_time_variance_penalty{})")
+        .end_panel()
+        .add_panel(
+            name="脚力对称",
+            name_en="reward_foot_force_symmetry",
+            type="line",
+            description="左右脚接触力不对称的惩罚(负值，趋近0:好)。对比左前-右前、左后-右后力差并归一化。上楼梯时一脚踩空/滑则力失衡,偏航旋转摔倒。正常:逐渐趋近0。绝对值大:重心偏一侧，易侧翻。",
+        )
+        .add_metric(metrics_name="reward_foot_force_symmetry", expr="avg(reward_foot_force_symmetry{})")
+        .end_panel()
+        .add_panel(
+            name="脚高对称",
+            name_en="reward_foot_height_symmetry",
+            type="line",
+            description="左右脚离地高度差的惩罚(负值，趋近0:好)。一脚抬得比另一脚高则步态歪斜。楼梯上踏步高度不一致则绊倒。正常:逐渐趋近0。绝对值大:单脚抬起过高或过低，步态偏斜。",
+        )
+        .add_metric(metrics_name="reward_foot_height_symmetry", expr="avg(reward_foot_height_symmetry{})")
+        .end_panel()
+        .add_panel(
+            name="髋关节回默认",
+            name_en="reward_hip_to_default",
+            type="line",
+            description="髋关节偏离默认角度的惩罚(负值，趋近0:好)。默认姿态=对称站姿，偏离=左右髋角度不一致则重心偏移。楼梯上身体倾斜易侧翻。正常:逐渐趋近0。一直为大负值:策略在非对称姿态下行走，需启用此约束。",
+        )
+        .add_metric(metrics_name="reward_hip_to_default", expr="avg(reward_hip_to_default{})")
+        .end_panel()
+        .end_group()
+        # ==============================================================
+        # Group 7: 奖励-导航 (navigation / obstacle avoidance)
         # ==============================================================
         .add_group(group_name="奖励-导航", group_name_en="reward_navigation")
         .add_panel(
@@ -249,6 +310,22 @@ def build_monitor():
             description="接近目标的密集奖励(距离减少则正奖励)。正常:逐渐升高，机器人更高效接近目标。保持为负:机器人平均在远离目标，可能是导航策略或避障信号冲突。",
         )
         .add_metric(metrics_name="reward_approach_goal", expr="avg(reward_approach_goal{})")
+        .end_panel()
+        .add_panel(
+            name="启发式导航",
+            name_en="reward_heuristic_navigation",
+            type="line",
+            description="wall-aware混合导航奖励(正值，越高越好)。前方通畅则朝goal前进; 前方堵塞则按clearance侧转。主导航信号，综合判断通畅度和方向合理性。正常:逐渐升高。始终很低:导航策略未学到有效的墙壁感知。",
+        )
+        .add_metric(metrics_name="reward_heuristic_navigation", expr="avg(reward_heuristic_navigation{})")
+        .end_panel()
+        .add_panel(
+            name="死胡同逃脱",
+            name_en="reward_deadend_escape",
+            type="line",
+            description="前方堵且左右有空间时奖励转向(正值，越高越好)。专门处理maze中走入死胡同的情况。正常:逐渐升高说明策略学会在堵塞时自主转向。始终为0:策略走入死胡同后不会自拔。",
+        )
+        .add_metric(metrics_name="reward_deadend_escape", expr="avg(reward_deadend_escape{})")
         .end_panel()
         .add_panel(
             name="避障",
