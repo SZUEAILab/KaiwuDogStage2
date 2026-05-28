@@ -46,7 +46,7 @@ class StageConfig:
 
     # --- Model architecture
     # 模型架构 ---
-    model_class = "ActorCritic"
+    model_class = "LocoActorCritic"
     actor_hidden_dims = [512, 256, 128]
     critic_hidden_dims = [512, 256, 128]
     activation = "elu"

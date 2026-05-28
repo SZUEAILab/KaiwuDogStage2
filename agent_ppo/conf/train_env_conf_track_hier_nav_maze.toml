@@ -41,7 +41,7 @@ num_envs = 2048
 
 # Max episode duration (seconds); track course is long, keep 150s.
 # 最大 episode 时长（秒）；track 赛道较长，保留 150s
-episode_length_s = 150
+episode_length_s = 80
 
 [env_conf]
 # Random seed.

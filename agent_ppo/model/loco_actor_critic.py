@@ -33,7 +33,7 @@ def resolve_nn_activation(activation: str) -> nn.Module:
     return activation_map[activation]
 
 
-class ActorCritic(nn.Module):
+class LocoActorCritic(nn.Module):
     """
     Actor-Critic network with flat tensor interface
     使用扁平张量接口的Actor-Critic网络
@@ -54,8 +54,8 @@ class ActorCritic(nn.Module):
         **kwargs: dict[str, Any],
     ) -> None:
         """
-        Initialize ActorCritic
-        初始化ActorCritic
+        Initialize LocoActorCritic
+        初始化LocoActorCritic
 
         Args:
             num_obs: Dimension of actor observation

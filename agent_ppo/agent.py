@@ -20,7 +20,7 @@ import torch.optim as optim
 from kaiwudrl.interface.agent import BaseAgent
 from agent_ppo.feature.definition import ActData
 from agent_ppo.conf.conf import Config
-from agent_ppo.model.actor_critic import ActorCritic
+from agent_ppo.model.loco_actor_critic import LocoActorCritic
 from agent_ppo.model.nav_network import NavActorCritic
 from agent_ppo.algorithm.algorithm_ppo import AlgorithmPPO
 from agent_ppo.algorithm.algorithm_hier_nav import AlgorithmHierNav
@@ -29,7 +29,7 @@ from tools.train_env_conf_validate import check_usr_conf
 
 class Agent(BaseAgent):
     def __init__(self, agent_type="player", device="cuda", logger=None, monitor=None):
-        self.cur_model_name = "ActorCritic"
+        self.cur_model_name = "LocoActorCritic"
         self.device = device
         self.logger = logger
         self.monitor = monitor
@@ -94,7 +94,7 @@ class Agent(BaseAgent):
         Initialize single-model (flat) architecture.
         初始化单模型（扁平）架构。
         """
-        self.model = ActorCritic(
+        self.model = LocoActorCritic(
             num_obs=self.num_obs,
             num_critic_obs=self.num_critic_obs,
             num_actions=self.num_actions,
@@ -141,13 +141,13 @@ class Agent(BaseAgent):
         self.logger.info(f"Nav Actor: {self.nav_model.actor}")
         self.logger.info(f"Nav Critic: {self.nav_model.critic}")
 
-        # Frozen locomotion model (standard ActorCritic, 12-DOF output).
+        # Frozen locomotion model (LocoActorCritic, 12-DOF output).
         # loco receives proprio(45) + scan(256) = 301 dim — goal info is stripped
         # by _build_loco_obs since loco doesn't need navigation targets.
-        # 冻结运控模型（标准 ActorCritic，12-DOF 输出）。
+        # 冻结运控模型（LocoActorCritic，12-DOF 输出）。
         # loco 输入为 proprio(45) + scan(256) = 301 维 — _build_loco_obs
         # 会去掉 goal，因为运控不需要导航目标。
-        self.loco_model = ActorCritic(
+        self.loco_model = LocoActorCritic(
             num_obs=num_proprio + num_scan,
             num_critic_obs=316,  # base critic dim (no goal)
             num_actions=12,
@@ -324,7 +324,7 @@ class Agent(BaseAgent):
         保存模型 checkpoint。
 
         Hierarchical mode: saves nav model (trainable).
-        Flat mode: saves the single ActorCritic.
+        Flat mode: saves the single LocoActorCritic.
         """
         model_file_path = f"{path}/model.ckpt-{str(id)}.pkl"
         if getattr(self, "is_hierarchical", False):
@@ -369,7 +369,7 @@ class Agent(BaseAgent):
         Supports two checkpoint formats:
         1. Hierarchical dict {"loco_model": ..., "nav_model": ...} — loads both.
            Logs which parts are present/missing.
-        2. Flat ActorCritic state_dict — treated as loco weights (legacy).
+        2. Flat LocoActorCritic state_dict — treated as loco weights (legacy).
            Logs that nav will train from scratch.
         """
         is_hier_ckpt = isinstance(pretrained, dict) and "loco_model" in pretrained

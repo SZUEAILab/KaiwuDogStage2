@@ -52,8 +52,8 @@ class AlgorithmPPO:
         初始化PPO算法
 
         Args:
-            model: Actor-critic network (ActorCritic or ActorCriticEncoder)
-            model: Actor-Critic网络（ActorCritic或ActorCriticEncoder）
+            model: Actor-critic network (LocoActorCritic or ActorCriticEncoder)
+            model: Actor-Critic网络（LocoActorCritic或ActorCriticEncoder）
             optimizer: Optimizer for model parameters
             optimizer: 模型参数优化器
             device: Device for computation

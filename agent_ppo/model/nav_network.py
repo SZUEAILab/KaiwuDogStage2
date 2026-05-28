@@ -17,7 +17,7 @@ import torch.nn as nn
 from torch.distributions import Normal
 from typing import Any
 
-from agent_ppo.model.actor_critic import resolve_nn_activation
+from agent_ppo.model.loco_actor_critic import resolve_nn_activation
 
 
 class NavActorCritic(nn.Module):

@@ -6,7 +6,7 @@
 """
 AlgorithmHierNav — hierarchical navigation training.
 
-Freezes a pretrained locomotion policy (ActorCritic, 12-DOF output) and
+Freezes a pretrained locomotion policy (LocoActorCritic, 12-DOF output) and
 trains a navigation policy (NavActorCritic, 3D velocity-cmd output) on top.
 
 Flow:
