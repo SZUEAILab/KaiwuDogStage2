@@ -1,14 +1,9 @@
 # =============================================================================
-# Standard Locomotion: comprehensive locomotion training on ALL sub-terrains.
-# Standard 综合运动训练：在所有子地形上学习基本运动策略。
+# Standard Locomotion: locomotion training on a standard grid of mixed sub-terrains.
+# Standard Locomotion: 标准地形运动训练（多种子地形按比例混合）
 #
-# Uses all 5 sub-terrain types with balanced proportions and comprehensive
-# rewards to learn robust locomotion (forward, lateral, turning, ascent, descent).
-# 使用全部 5 种子地形 + 综合奖励，学习鲁棒的基本运动策略。
-#
-# This is the starting point — after this stage the policy should walk stably
-# on all terrain types.
-# 这是训练的起点 —— 完成本阶段后策略应在所有地形上稳定行走。
+# Based on  Stage1 + extra terms (termination / flat_orientation / feet_stumble).
+# 基于 Stage1 + 额外项（termination / flat_orientation / feet_stumble）
 # =============================================================================
 
 # === Basic Configuration ===
@@ -221,19 +216,19 @@ weight = -1.0
 # 触发阈值：被罚前允许的最大接触数
 threshold = 1
 
-# # --- Extra: anti-tipping ---
-# # --- 额外：防倾倒 ---
-# [rewards.flat_orientation]
-# # Penalty on deviation from flat base orientation.
-# # 基座偏离水平姿态的惩罚
-# weight = -1.5
+# --- Extra: anti-tipping ---
+# --- 额外：防倾倒 ---
+[rewards.flat_orientation]
+# Penalty on deviation from flat base orientation.
+# 基座偏离水平姿态的惩罚
+weight = -1.5
 
-# [rewards.reach_goal]
-# # Reach-goal reward example (active only when env.goal_positions is maintained, i.e. track terrain).
-# # 到达目标奖励示例（仅在 track 地形下 env.goal_positions 被维护时生效）。
-# weight = 10.0
-# [rewards.reach_goal.params]
-# threshold = 0.6
+[rewards.reach_goal]
+# Reach-goal reward example (active only when env.goal_positions is maintained, i.e. track terrain).
+# 到达目标奖励示例（仅在 track 地形下 env.goal_positions 被维护时生效）。
+weight = 10.0
+[rewards.reach_goal.params]
+threshold = 0.6
 
 # # --- Positive: feet air time (step quality) ---
 # # --- 正向：脚部滞空时间（步态质量） ---
