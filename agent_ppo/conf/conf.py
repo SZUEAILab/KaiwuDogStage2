@@ -192,44 +192,6 @@ class StandardMazeConfig(StageConfig):
     task_type = "standard"
 
 
-class TrackNavConfig(StageConfig):
-    """
-    Stage: nav — track-terrain navigation training (end-to-end).
-    阶段：nav —— track 地形导航训练（端到端）。
-
-    Joint locomotion + navigation training on track terrain with
-    navigation-focused rewards. Locomotion rewards are down-weighted
-    so the navigation signal (approach goal, avoid obstacles) dominates.
-    在 track 地形上联合训练运控 + 导航，导航奖励权重更高，
-    导航信号（接近目标、避障）主导训练。
-
-    For true hierarchical nav (frozen locomotion + trainable nav policy),
-    use the hierarchical config variant after standard locomotion pretraining.
-    真正的层级导航（冻结运控 + 可训练导航策略）需在 standard 预训练后使用。
-    """
-
-    name = "nav"
-    task_type = "track"
-
-    # Navigation-relevant observation: adds 4D goal (robot-frame xyz + distance)
-    # 导航相关观测：增加 4 维 goal（机器人坐标系 xyz + 距离）
-    num_goal_obs = 4
-
-    # Lower learning rate for stable policy adaptation
-    lr = 1e-4
-
-    # Longer rollout for track terrain (longer episodes, more data)
-    num_steps_per_env = 64
-
-    # Fewer epochs to prevent overfitting on nav-specific data
-    num_learning_epochs = 3
-
-    # Larger mini-batches for stable updates
-    num_mini_batches = 8
-
-    # Preserve exploration for navigation
-    min_normalized_std = [0.08, 0.03, 0.08] * 4
-
 
 class TrackHierNavConfig(StageConfig):
     """
@@ -280,28 +242,6 @@ class TrackHierNavConfig(StageConfig):
 
     # Preserve exploration for navigation
     min_normalized_std = [0.15, 0.08, 0.25]  # [vx, vy, wz]
-
-
-class TrackNavMazeConfig(StageConfig):
-    """
-    Stage: nav_maze — track-mode nav training on maze-only terrain.
-    阶段：nav_maze —— track 模式纯迷宫地形导航训练。
-
-    Uses only open_entry_maze sub-terrain (track_length=1) for focused
-    maze navigation training.
-    仅用 open_entry_maze 子地形专注迷宫导航。
-    """
-
-    name = "nav_maze"
-    task_type = "track"
-
-    num_goal_obs = 4
-
-    lr = 1e-4
-    num_steps_per_env = 64
-    num_learning_epochs = 3
-    num_mini_batches = 8
-    min_normalized_std = [0.08, 0.03, 0.08] * 4
 
 
 class TrackHierNavMazeConfig(StageConfig):
