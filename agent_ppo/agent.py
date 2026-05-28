@@ -134,7 +134,8 @@ class Agent(BaseAgent):
             actor_hidden_dims=stage.actor_hidden_dims,
             critic_hidden_dims=stage.critic_hidden_dims,
             activation=stage.activation,
-            cmd_scale=getattr(stage, "cmd_scale", None),
+            cmd_upper=getattr(stage, "cmd_upper", None),
+            cmd_lower=getattr(stage, "cmd_lower", None),
         ).to(self.device)
 
         self.logger.info(f"Nav Actor: {self.nav_model.actor}")
@@ -174,8 +175,10 @@ class Agent(BaseAgent):
             learning_rate=stage.lr,
             num_mini_batches=stage.num_mini_batches,
             num_learning_epochs=stage.num_learning_epochs,
-            cmd_indices=getattr(stage, "cmd_indices", (9, 12)),
+            cmd_indices=getattr(stage, "cmd_indices", (6, 9)),
             num_proprio_obs=num_proprio,
+            num_scan=num_scan,
+            num_goal_obs=self.num_goal_obs,
             num_nav_proprio=self.num_nav_proprio,
             num_nav_critic_body=self.num_nav_critic_body,
         )
@@ -281,19 +284,22 @@ class Agent(BaseAgent):
 
             if counter % decimation == 0 or self._cached_nav_result is None:
                 # 1. Nav model forward pass (slim obs: base proprio + scan + goal)
-                self.nav_model.update_distribution(nav_obs)
-                nav_actions = self.nav_model.distribution.sample()
-                nav_values = self.nav_model.evaluate(
-                    self.algorithm._build_nav_critic_obs(critic_obs)
-                )
-                nav_log_probs = self.nav_model.get_actions_log_prob(nav_actions)
-                nav_mu = self.nav_model.action_mean.detach()
-                nav_sigma = self.nav_model.action_std.detach()
-                self._cached_nav_result = (nav_actions, nav_values, nav_log_probs, nav_mu, nav_sigma)
+                nav_actions = self.nav_model.act(nav_obs)
+                self._cached_nav_result = nav_actions.detach()
             else:
-                nav_actions, nav_values, nav_log_probs, nav_mu, nav_sigma = self._cached_nav_result
+                nav_actions = self._cached_nav_result
 
             self._nav_step_counter = counter + 1
+
+            # Recompute training statistics against the current observation even
+            # when holding a decimated command from a previous nav step.
+            self.nav_model.update_distribution(nav_obs)
+            nav_values = self.nav_model.evaluate(
+                self.algorithm._build_nav_critic_obs(critic_obs)
+            )
+            nav_log_probs = self.nav_model.get_actions_log_prob(nav_actions)
+            nav_mu = self.nav_model.action_mean.detach()
+            nav_sigma = self.nav_model.action_std.detach()
 
             # 2. Build loco observation with nav's velocity command
             loco_obs = self.algorithm._build_loco_obs(obs, nav_actions)
@@ -401,7 +407,7 @@ class Agent(BaseAgent):
         """Load weights into a model component with mismatch detection and logging."""
         current_state = model.state_dict()
 
-        has_mismatch = False
+        has_mismatch = set(pretrained.keys()) != set(current_state.keys())
         for key in pretrained:
             if key in current_state and pretrained[key].shape != current_state[key].shape:
                 has_mismatch = True

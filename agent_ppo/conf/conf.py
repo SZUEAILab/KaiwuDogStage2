@@ -259,15 +259,14 @@ class TrackHierNavConfig(StageConfig):
     actor_hidden_dims = [256, 128, 64]
     critic_hidden_dims = [256, 128, 64]
 
-    # Velocity command indices in proprio observation [start, end)
-    # 速度指令在 proprio 观测中的索引 [start, end)
-    cmd_indices = (9, 12)
+    # Velocity command indices in policy proprio observation [start, end).
+    # Policy obs layout: base_ang_vel[0:3], projected_gravity[3:6], velocity_cmd[6:9].
+    cmd_indices = (6, 9)
 
-    # Output scale per action dim [vx, vy, wz] — matches commands.limit
-    # tanh squashes raw output to (-1,1), * cmd_scale → bounded velocity cmd
-    cmd_scale = [0.8, 0.3, 1.5]
+    # Nav output bounds per dim [vx, vy, wz].
+    cmd_upper = [0.8, 0.3, 1.5]
+    cmd_lower = [-0.8, -0.3, -1.5]
 
-    # Lower learning rate for stable nav training
     lr = 1e-4
 
     # Longer rollout for track terrain
@@ -325,9 +324,12 @@ class TrackHierNavMazeConfig(StageConfig):
     actor_hidden_dims = [256, 128, 64]
     critic_hidden_dims = [256, 128, 64]
 
-    cmd_indices = (9, 12)
+    # Velocity command indices in policy proprio observation [start, end).
+    # Policy obs layout: base_ang_vel[0:3], projected_gravity[3:6], velocity_cmd[6:9].
+    cmd_indices = (6, 9)
 
-    cmd_scale = [0.8, 0.3, 1.5]
+    cmd_upper = [0.8, 0.3, 1.5]
+    cmd_lower = [-0.8, -0.3, -1.5]
 
     lr = 1e-4
     num_steps_per_env = 64

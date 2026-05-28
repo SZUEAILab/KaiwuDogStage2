@@ -59,9 +59,11 @@ class AlgorithmHierNav:
         entropy_coef_end: float = 0.001,
         entropy_decay_steps: int = 10000,
         # Command injection: indices of velocity cmd [vx,vy,wz] in proprio obs
-        cmd_indices: tuple[int, int] = (9, 12),
+        cmd_indices: tuple[int, int] = (6, 9),
         # Proprio dimensions for nav_obs extraction
         num_proprio_obs: int = 45,
+        num_scan: int = 256,
+        num_goal_obs: int = 0,
         num_nav_proprio: int = 12,
         num_nav_critic_body: int = 9,
         **kwargs,
@@ -104,8 +106,12 @@ class AlgorithmHierNav:
 
         # Proprio layout for nav obs extraction
         self.num_proprio_obs = num_proprio_obs
+        self.num_scan = num_scan
+        self.num_goal_obs = num_goal_obs
         self.num_nav_proprio = num_nav_proprio
         self.num_nav_critic_body = num_nav_critic_body
+        self.num_policy_obs = self.num_proprio_obs + self.num_scan + self.num_goal_obs
+        self.num_critic_obs = 60 + self.num_scan + self.num_goal_obs
 
         # Nav model min std
         from agent_ppo.conf.conf import Config
@@ -177,7 +183,16 @@ class AlgorithmHierNav:
 
         The velocity cmd [vx, vy, wz] sits at proprio[self.cmd_start:self.cmd_end].
         """
-        loco_obs = obs[:, :self.num_proprio_obs + 256].clone()
+        expected_obs_dim = self.num_proprio_obs + self.num_scan
+        if obs.shape[-1] < expected_obs_dim:
+            raise ValueError(f"obs dim mismatch: got {obs.shape[-1]}, expected at least {expected_obs_dim}")
+
+        loco_obs = obs[:, :expected_obs_dim].clone()
+        expected_cmd_dim = self.cmd_end - self.cmd_start
+        if velocity_cmd.shape[-1] != expected_cmd_dim:
+            raise ValueError(
+                f"velocity_cmd dim mismatch: got {velocity_cmd.shape[-1]}, expected {expected_cmd_dim}"
+            )
         loco_obs[:, self.cmd_start : self.cmd_end] = velocity_cmd
         return loco_obs
 
@@ -187,6 +202,8 @@ class AlgorithmHierNav:
         obs[:, :6] = base_ang_vel(3) + projected_gravity(3), no cmd, no joints.
         导航 actor 观测：基础机身信息 + 扫描 + goal，不含速度指令和关节。
         """
+        if obs.shape[-1] < self.num_policy_obs:
+            raise ValueError(f"obs dim mismatch: got {obs.shape[-1]}, expected at least {self.num_policy_obs}")
         return torch.cat([obs[:, : self.num_nav_proprio], obs[:, self.num_proprio_obs:]], dim=-1)
 
     def _build_nav_critic_obs(self, critic_obs: torch.Tensor) -> torch.Tensor:
@@ -196,6 +213,23 @@ class AlgorithmHierNav:
         Body: base_lin_vel(3) + base_ang_vel(3) + projected_gravity(3) = 9
         导航 critic 观测：特权机身信息 + 扫描 + goal，去掉关节和运控特权信息。
         """
+        if critic_obs.shape[-1] == self.num_policy_obs:
+            base_lin_vel = torch.zeros(
+                critic_obs.shape[0],
+                3,
+                device=critic_obs.device,
+                dtype=critic_obs.dtype,
+            )
+            return torch.cat(
+                [base_lin_vel, critic_obs[:, : self.num_nav_proprio], critic_obs[:, self.num_proprio_obs:]],
+                dim=-1,
+            )
+
+        if critic_obs.shape[-1] < self.num_critic_obs:
+            raise ValueError(
+                f"critic_obs dim mismatch: got {critic_obs.shape[-1]}, expected {self.num_critic_obs}"
+            )
+
         return torch.cat(
             [critic_obs[:, : self.num_nav_critic_body], critic_obs[:, 60:]],
             dim=-1,

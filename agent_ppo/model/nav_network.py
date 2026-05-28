@@ -41,18 +41,30 @@ class NavActorCritic(nn.Module):
         activation: str = "elu",
         init_noise_std: float = 0.5,
         noise_std_type: str = "scalar",
-        cmd_scale: list[float] | None = None,
+        cmd_upper: list[float] | None = None,
+        cmd_lower: list[float] | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         super().__init__()
 
         activation_fn = resolve_nn_activation(activation)
 
-        # cmd_scale: output range per dim [vx_max, vy_max, wz_max]
-        # tanh squashes raw output to (-1,1), then * cmd_scale → bounded cmd
-        if cmd_scale is None:
-            cmd_scale = [2.0, 1.5, 1.5]
-        self.register_buffer("cmd_scale", torch.tensor(cmd_scale, dtype=torch.float32))
+        # cmd_lower / cmd_upper: per-dim output bounds.
+        # Network output: raw ∈ [-1,1] (tanh), then affine → [cmd_lower, cmd_upper].
+        # 网络输出: raw ∈ [-1,1] (tanh)，仿射映射到 [cmd_lower, cmd_upper]。
+        if cmd_upper is None:
+            cmd_upper = [2.0, 1.5, 1.5]
+        cmd_upper_t = torch.tensor(cmd_upper, dtype=torch.float32)
+        if cmd_lower is None:
+            cmd_lower_t = -cmd_upper_t
+        else:
+            cmd_lower_t = torch.tensor(cmd_lower, dtype=torch.float32)
+        self.register_buffer("cmd_lower", cmd_lower_t)
+        self.register_buffer("cmd_upper", cmd_upper_t)
+        half_range = (cmd_upper_t - cmd_lower_t) / 2.0
+        mid = (cmd_upper_t + cmd_lower_t) / 2.0
+        self.register_buffer("cmd_half_range", half_range)
+        self.register_buffer("cmd_mid", mid)
 
         # Actor MLP: obs → velocity_cmd [vx, vy, wz]
         # 策略网络：obs → 速度指令 [vx, vy, wz]
@@ -121,7 +133,8 @@ class NavActorCritic(nn.Module):
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, obs: torch.Tensor):
-        mean = self.actor(obs) * self.cmd_scale
+        raw = self.actor(obs)  # tanh → [-1, 1]
+        mean = raw * self.cmd_half_range + self.cmd_mid
         if self.noise_std_type == "scalar":
             std = self.std.clamp(min=1e-6).expand_as(mean)
         elif self.noise_std_type == "log":
@@ -133,10 +146,11 @@ class NavActorCritic(nn.Module):
     def act(self, obs: torch.Tensor, **kwargs) -> torch.Tensor:
         self.update_distribution(obs)
         action = self.distribution.sample()
-        return torch.clamp(action, -self.cmd_scale, self.cmd_scale)
+        return torch.clamp(action, self.cmd_lower, self.cmd_upper)
 
     def act_inference(self, obs: torch.Tensor) -> torch.Tensor:
-        return self.actor(obs) * self.cmd_scale
+        raw = self.actor(obs)
+        return raw * self.cmd_half_range + self.cmd_mid
 
     def evaluate(self, critic_obs: torch.Tensor, **kwargs) -> torch.Tensor:
         return self.critic(critic_obs)
