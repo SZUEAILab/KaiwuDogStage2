@@ -43,7 +43,7 @@ num_envs = 2048
 
 # Max episode duration (seconds); track course is long, keep 150s.
 # 最大 episode 时长（秒）；track 赛道较长，保留 150s
-episode_length_s = 150
+episode_length_s = 120
 
 [env_conf]
 # Random seed.
@@ -216,7 +216,7 @@ nav_decimation = 1
 # --- Velocity tracking (low weight, drives lin_vel_cmd_levels curriculum to auto speed-up later) ---
 # --- 速度跟踪（低权重，驱动 lin_vel_cmd_levels curriculum，训练后期自动提速）---
 [rewards.track_lin_vel_xy]
-weight = 0.15
+weight = 0
 [rewards.track_lin_vel_xy.params]
 # Std of Gaussian kernel.
 # 高斯核标准差
@@ -224,7 +224,7 @@ std = 0.25
 command_name = "base_velocity"
 
 [rewards.track_ang_vel_z]
-weight = 0.1
+weight = 0
 [rewards.track_ang_vel_z.params]
 std = 0.25
 command_name = "base_velocity"
@@ -241,6 +241,11 @@ weight = 8.0
 # Obstacle threshold (height delta in meters, negative = wall/pit).
 # 障碍判定阈值（高度差，米，负值 = 下凹/墙）
 obstacle_threshold = -0.3
+
+# Approach goal: dense reward for decreasing distance to goal.
+# 接近目标：距离减少→正奖励，每步给予密集反馈
+[rewards.approach_goal]
+weight = 2.0
 
 # Dead-end escape: reward turning when blocked ahead with lateral clearance.
 # 死胡同转向：前方堵且左右有空间时奖励转向
