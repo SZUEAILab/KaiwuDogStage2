@@ -111,8 +111,8 @@ class RewardProcess(RewardProcessBase):
         window = grid[:, body_y_start:body_y_end, :near_x_end]
         col_blocked = (window < obstacle_threshold).any(dim=-1).float()
         blocked = col_blocked.mean(dim=-1)
-        yaw_rate = torch.abs(asset.data.root_ang_vel_b[:, 2])
-        not_evading = torch.exp(-yaw_rate / turn_std)
+        turn_rate = torch.abs(asset.data.root_ang_vel_b[:, 2])
+        not_evading = torch.exp(-turn_rate / turn_std)
         cmd = self.env.command_manager.get_command(command_name)
         has_fwd_cmd = (cmd[:, 0] > 0.05).float()
         return blocked * not_evading * has_fwd_cmd
@@ -319,21 +319,14 @@ class RewardProcess(RewardProcessBase):
         return scan.view(self.env.num_envs, 16, 16)
 
     def _get_far_field_blocked(self, obstacle_threshold: float = -0.4):
-        """Use nav_scanner for longer-range forward obstacle detection (~2.5m).
+        """Estimate farther forward blocking from the existing height scan.
 
-        Uses a more stringent threshold than near-field because slopes accumulate
-        height over distance. Walls are 0.5m — -0.4 threshold + fraction gating
-        avoids slope false positives.
-        远场用更严格的阈值：斜坡在远距离会积累高差。墙高 0.5m，-0.4 阈值 + 比例
-        门控可避免斜坡误判。
+        Uses the far columns of height_scanner instead of any extra sensor.
+        使用 height_scanner 的远端列估计前方阻塞，不依赖额外传感器。
         """
-        if "nav_scanner" not in self.env.scene.sensors:
-            return torch.zeros(self.env.num_envs, device=self.env.device)
-        sensor = self.env.scene.sensors["nav_scanner"]
-        origins_z = sensor.data.pos_w[:, 2:3]
-        hits_z = sensor.data.ray_hits_w[..., 2]
-        scan = origins_z - hits_z
-        blocked_frac = (scan < obstacle_threshold).float().mean(dim=-1)
+        grid = self._get_scan_grid()
+        far_center = grid[:, 5:11, 8:16]
+        blocked_frac = (far_center < obstacle_threshold).float().mean(dim=(1, 2))
         return (blocked_frac > 0.3).float()
 
     def _reward_heuristic_navigation(self, obstacle_threshold: float = -0.3):
@@ -356,8 +349,8 @@ class RewardProcess(RewardProcessBase):
         fwd_vel = torch.clamp(asset.data.root_lin_vel_b[:, 0], min=0.0)
         forward_ok = (1.0 - front_blocked_frac).clamp(min=0.0)
         fwd_reward = fwd_vel * forward_ok
-        yaw_rate = asset.data.root_ang_vel_b[:, 2]
-        turn_reward = torch.tanh(yaw_rate * side_preference * 2.0)
+        turn_rate = asset.data.root_ang_vel_b[:, 2]
+        turn_reward = torch.tanh(turn_rate * side_preference * 2.0)
         return (1.0 - front_blocked_frac) * fwd_reward + front_blocked_frac * turn_reward
 
     def _reward_deadend_escape(self, obstacle_threshold: float = -0.3, trapped_threshold: float = 0.3):
@@ -371,5 +364,5 @@ class RewardProcess(RewardProcessBase):
         front_blocked = (grid[:, 5:11, 0:8] < obstacle_threshold).float().mean(dim=(1, 2)) > trapped_threshold
         right_blocked = (grid[:, 11:16, 0:10] < obstacle_threshold).float().mean(dim=(1, 2)) > trapped_threshold
         is_trapped = (left_blocked & front_blocked & right_blocked & (far_blocked > 0.5)).float()
-        yaw_rate_mag = torch.abs(asset.data.root_ang_vel_b[:, 2])
-        return is_trapped * torch.clamp(yaw_rate_mag, max=1.5)
+        turn_rate_mag = torch.abs(asset.data.root_ang_vel_b[:, 2])
+        return is_trapped * torch.clamp(turn_rate_mag, max=1.5)

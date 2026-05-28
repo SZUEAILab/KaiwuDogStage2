@@ -41,11 +41,18 @@ class NavActorCritic(nn.Module):
         activation: str = "elu",
         init_noise_std: float = 0.5,
         noise_std_type: str = "scalar",
+        cmd_scale: list[float] | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         super().__init__()
 
         activation_fn = resolve_nn_activation(activation)
+
+        # cmd_scale: output range per dim [vx_max, vy_max, wz_max]
+        # tanh squashes raw output to (-1,1), then * cmd_scale → bounded cmd
+        if cmd_scale is None:
+            cmd_scale = [2.0, 1.5, 1.5]
+        self.register_buffer("cmd_scale", torch.tensor(cmd_scale, dtype=torch.float32))
 
         # Actor MLP: obs → velocity_cmd [vx, vy, wz]
         # 策略网络：obs → 速度指令 [vx, vy, wz]
@@ -56,6 +63,7 @@ class NavActorCritic(nn.Module):
         for i in range(len(actor_hidden_dims)):
             if i == len(actor_hidden_dims) - 1:
                 actor_layers.append(nn.Linear(actor_hidden_dims[i], num_actions))
+                actor_layers.append(nn.Tanh())
             else:
                 actor_layers.append(nn.Linear(actor_hidden_dims[i], actor_hidden_dims[i + 1]))
                 actor_layers.append(nn.LayerNorm(actor_hidden_dims[i + 1]))
@@ -113,7 +121,7 @@ class NavActorCritic(nn.Module):
         return self.distribution.entropy().sum(dim=-1)
 
     def update_distribution(self, obs: torch.Tensor):
-        mean = self.actor(obs)
+        mean = self.actor(obs) * self.cmd_scale
         if self.noise_std_type == "scalar":
             std = self.std.clamp(min=1e-6).expand_as(mean)
         elif self.noise_std_type == "log":
@@ -124,10 +132,11 @@ class NavActorCritic(nn.Module):
 
     def act(self, obs: torch.Tensor, **kwargs) -> torch.Tensor:
         self.update_distribution(obs)
-        return self.distribution.sample()
+        action = self.distribution.sample()
+        return torch.clamp(action, -self.cmd_scale, self.cmd_scale)
 
     def act_inference(self, obs: torch.Tensor) -> torch.Tensor:
-        return self.actor(obs)
+        return self.actor(obs) * self.cmd_scale
 
     def evaluate(self, critic_obs: torch.Tensor, **kwargs) -> torch.Tensor:
         return self.critic(critic_obs)

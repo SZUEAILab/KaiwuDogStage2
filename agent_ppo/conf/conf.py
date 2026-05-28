@@ -43,8 +43,6 @@ class StageConfig:
     num_scan = 256  # 16x16 height-scan dim / 16x16 高度扫描维度
     num_critic_observations = 316  # proprio(45) + scan(256) + privileged(15)
     num_goal_obs = 0  # standard locomotion has no goal; track stages override with 4
-    num_yaw_obs = 0  # world-frame yaw for world-frame reward; e2e stages override with 2
-    num_nav_scan = 0  # nav_scanner rays (track mode, wider range); set >0 to append to obs
 
     # --- Model architecture
     # 模型架构 ---
@@ -143,8 +141,6 @@ class UpstairsE2EConfig(StageConfig):
 
     name = "upstairs_e2e"
     task_type = "standard"
-
-    num_yaw_obs = 2
 
     lr = 1e-4
     num_steps_per_env = 64
@@ -267,6 +263,10 @@ class TrackHierNavConfig(StageConfig):
     # 速度指令在 proprio 观测中的索引 [start, end)
     cmd_indices = (9, 12)
 
+    # Output scale per action dim [vx, vy, wz] — matches commands.limit
+    # tanh squashes raw output to (-1,1), * cmd_scale → bounded velocity cmd
+    cmd_scale = [0.8, 0.3, 1.5]
+
     # Lower learning rate for stable nav training
     lr = 1e-4
 
@@ -326,6 +326,8 @@ class TrackHierNavMazeConfig(StageConfig):
     critic_hidden_dims = [256, 128, 64]
 
     cmd_indices = (9, 12)
+
+    cmd_scale = [0.8, 0.3, 1.5]
 
     lr = 1e-4
     num_steps_per_env = 64

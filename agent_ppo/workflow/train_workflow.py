@@ -8,15 +8,14 @@ Author: Tencent AI Arena Authors
 """
 
 
-from common_python.utils.common_func import Frame
 import os
+from common_python.utils.common_func import Frame
 import time
 from agent_ppo.conf.conf import Config
 from agent_ppo.feature.definition import RolloutStorage
 from tools.utils import load_reward_keys_from_monitor_config
 import torch
 from collections import deque, defaultdict
-
 
 def _initialize_training_state(env, agent, logger):
     """
@@ -351,15 +350,15 @@ def _compute_advantages_and_returns(storage, agent, critic_obs, logger):
     Compute advantage function and returns.
     计算优势函数和回报。
 
-    Hierarchical mode: uses nav_model for bootstrap values.
+    Hierarchical mode: uses algorithm (handles critic obs slimming internally).
     Flat mode: uses actor_critic for bootstrap values.
     """
     last_critic_obs = torch.clone(critic_obs)
     if getattr(agent, "is_hierarchical", False):
-        last_values = agent.nav_model.evaluate(last_critic_obs.detach()).detach()
+        agent.algorithm.compute_returns(last_critic_obs)
     else:
         last_values = agent.algorithm.actor_critic.evaluate(last_critic_obs.detach()).detach()
-    storage.compute_returns(last_values, agent.algorithm.gamma, agent.algorithm.lam)
+        storage.compute_returns(last_values, agent.algorithm.gamma, agent.algorithm.lam)
 
     storage_stats = {
         "reward_mean": storage.rewards.mean().item(),

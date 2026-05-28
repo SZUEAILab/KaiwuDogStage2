@@ -60,6 +60,10 @@ class AlgorithmHierNav:
         entropy_decay_steps: int = 10000,
         # Command injection: indices of velocity cmd [vx,vy,wz] in proprio obs
         cmd_indices: tuple[int, int] = (9, 12),
+        # Proprio dimensions for nav_obs extraction
+        num_proprio_obs: int = 45,
+        num_nav_proprio: int = 12,
+        num_nav_critic_body: int = 9,
         **kwargs,
     ):
         self.device = device
@@ -97,6 +101,11 @@ class AlgorithmHierNav:
 
         # Command injection indices
         self.cmd_start, self.cmd_end = cmd_indices
+
+        # Proprio layout for nav obs extraction
+        self.num_proprio_obs = num_proprio_obs
+        self.num_nav_proprio = num_nav_proprio
+        self.num_nav_critic_body = num_nav_critic_body
 
         # Nav model min std
         from agent_ppo.conf.conf import Config
@@ -142,9 +151,11 @@ class AlgorithmHierNav:
             critic_obs = obs
 
         with torch.no_grad():
-            # 1. Nav model: obs → velocity_cmd [vx, vy, wz]
-            nav_actions = self.nav_model.act(obs)
-            nav_values = self.nav_model.evaluate(critic_obs)
+            # 1. Nav model: slim obs → velocity_cmd [vx, vy, wz]
+            nav_obs = self._build_nav_obs(obs)
+            nav_critic_obs = self._build_nav_critic_obs(critic_obs)
+            nav_actions = self.nav_model.act(nav_obs)
+            nav_values = self.nav_model.evaluate(nav_critic_obs)
             nav_log_probs = self.nav_model.get_actions_log_prob(nav_actions)
             nav_mu = self.nav_model.action_mean.detach()
             nav_sigma = self.nav_model.action_std.detach()
@@ -157,24 +168,43 @@ class AlgorithmHierNav:
 
         return joint_actions, nav_values, nav_log_probs, nav_mu, nav_sigma
 
-    def _build_loco_obs(self, nav_obs: torch.Tensor, velocity_cmd: torch.Tensor) -> torch.Tensor:
+    def _build_loco_obs(self, obs: torch.Tensor, velocity_cmd: torch.Tensor) -> torch.Tensor:
         """
         Build locomotion observation by replacing velocity command in proprio.
 
-        nav_obs layout: [proprio(45) | height_scan(256) | goal(4)] = 305
+        obs layout: [proprio(45) | height_scan(256) | goal(4) | ...] = 305+
         loco_obs layout: [proprio(45, cmd replaced) | height_scan(256)] = 301
 
         The velocity cmd [vx, vy, wz] sits at proprio[self.cmd_start:self.cmd_end].
         """
-        # Take proprio + scan, drop goal
-        loco_obs = nav_obs[:, :301].clone()
-        # Replace velocity command in proprio
+        loco_obs = obs[:, :self.num_proprio_obs + 256].clone()
         loco_obs[:, self.cmd_start : self.cmd_end] = velocity_cmd
         return loco_obs
 
-    def compute_returns(self, last_obs: torch.Tensor):
+    def _build_nav_obs(self, obs: torch.Tensor) -> torch.Tensor:
+        """
+        Extract nav actor obs: base_body(6) + scan + goal + ...
+        obs[:, :6] = base_ang_vel(3) + projected_gravity(3), no cmd, no joints.
+        导航 actor 观测：基础机身信息 + 扫描 + goal，不含速度指令和关节。
+        """
+        return torch.cat([obs[:, : self.num_nav_proprio], obs[:, self.num_proprio_obs:]], dim=-1)
+
+    def _build_nav_critic_obs(self, critic_obs: torch.Tensor) -> torch.Tensor:
+        """
+        Extract nav critic obs: privileged body + scan + goal + ...
+        critic_obs: [critic_proprio(60) | scan(256) | goal(4) | ...]
+        Body: base_lin_vel(3) + base_ang_vel(3) + projected_gravity(3) = 9
+        导航 critic 观测：特权机身信息 + 扫描 + goal，去掉关节和运控特权信息。
+        """
+        return torch.cat(
+            [critic_obs[:, : self.num_nav_critic_body], critic_obs[:, 60:]],
+            dim=-1,
+        )
+
+    def compute_returns(self, last_critic_obs: torch.Tensor):
         with torch.no_grad():
-            last_values = self.nav_model.evaluate(last_obs)
+            nav_critic_obs = self._build_nav_critic_obs(last_critic_obs)
+            last_values = self.nav_model.evaluate(nav_critic_obs)
         self.storage.compute_returns(last_values, self.gamma, self.lam)
 
     def learn(self) -> tuple:
@@ -205,11 +235,13 @@ class AlgorithmHierNav:
                 masks_batch,
             ) = sample
 
-            # Forward pass through NAV model
-            self.nav_model.update_distribution(obs_batch)
+            # Forward pass through NAV model (slim obs)
+            nav_obs_batch = self._build_nav_obs(obs_batch)
+            nav_critic_obs_batch = self._build_nav_critic_obs(critic_obs_batch)
+            self.nav_model.update_distribution(nav_obs_batch)
             actions_log_prob_batch = self.nav_model.get_actions_log_prob(actions_batch)
             entropy_batch = self.nav_model.entropy
-            value_batch = self.nav_model.evaluate(critic_obs_batch)
+            value_batch = self.nav_model.evaluate(nav_critic_obs_batch)
             mu_batch = self.nav_model.action_mean
             sigma_batch = self.nav_model.action_std
 

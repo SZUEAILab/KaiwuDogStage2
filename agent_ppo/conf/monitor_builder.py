@@ -14,6 +14,24 @@ def build_monitor():
     """
     构建监控面板配置，为每个指标提供说明: 作用+如何判断训练好坏。
     description 限制 0~200 字符，仅允许中英文/数字/空格及指定特殊符号。
+    # This function is used to create monitoring panel configurations for custom indicators.
+    # 该函数用于创建自定义指标的监控面板配置。
+    #
+    # Note: this builder only keeps metrics that are unique to algorithm training
+    # (loss-series metrics, episode_reward, track traversal progress).
+    # Other reward_* metrics (velocity tracking, posture, gait, navigation rewards, etc.)
+    # are rendered by the project-side tools/conf/monitor_default.yaml and
+    # tools/conf/monitor_default_track.yaml, and are no longer redefined here,
+    # to avoid duplicated panels with the same name in the final merged dashboard.
+    #
+    # 注意：本 builder 只保留算法训练独有的指标（loss 类、episode_reward、赛道穿越进度）。
+    # 其余 reward_* 指标（速度跟踪、姿态、步态、导航奖励等）由项目侧
+    # tools/conf/monitor_default.yaml 与 tools/conf/monitor_default_track.yaml 负责展示，
+    # 这里不再重复定义，避免最终合并后的监控面板出现同名指标重复绘制。
+
+    Returns:
+        dict: monitor configuration dictionary
+        返回值：监控配置字典
     """
     monitor = MonitorConfigBuilder()
 
