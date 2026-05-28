@@ -37,12 +37,14 @@ mode = "standard"
 
 # In standard mode, num_rows = number of difficulty tiers (curriculum levels along X),
 # valid range [1, 10], recommended 10.
-# standard 模式下 num_rows 表示难度级别数（沿 X 轴的课程档位），合法范围：[1, 10]，推荐 10
+# standard 模式下 num_rows 表示**难度级别数**（沿 X 轴的课程档位），合法范围：[1, 10]，推荐 10
 num_rows = 10
 
 # In standard mode, num_cols = parallel plots within the same difficulty tier along Y,
 # valid range [1, 40], recommended 20.
-# standard 模式下 num_cols 表示同一难度下的并行地块数（沿 Y 轴），合法范围：[1, 40]，推荐 20
+# Note: in standard mode num_cols is NOT a difficulty tier, just parallel plots for env distribution.
+# standard 模式下 num_cols 表示**同一难度下的并行地块数**（沿 Y 轴），合法范围：[1, 40]，推荐 20
+# 注意：standard 模式下 num_cols 不是难度档，而是用于分散大量 env 到不同地块的并行数
 num_cols = 20
 
 # Difficulty range [min, max], valid range: [0.0, 1.0].
@@ -54,14 +56,14 @@ difficulty_range = [0.0, 1.0]
 curriculum = true
 
 # Max init difficulty tier for robot placement, valid range: [0, 9].
-# Start from moderate difficulty — policy should learn all terrain types.
-# 机器人初始放置的最大难度档，合法范围：[0, 9]，从中等难度开始。
-max_init_terrain_level = 2
+# 机器人初始放置的最大难度档，合法范围：[0, 9]
+max_init_terrain_level = 5
 
 
 # Sub-terrain proportions (all proportions must sum to 1.0).
-# Balanced mix: all 5 sub-terrain types for comprehensive locomotion.
-# 子地形比例（所有 proportion 之和必须 = 1.0）。
+# Allowed sub-terrains: pyramid_slope | pyramid_slope_inv | pyramid_stairs | pyramid_stairs_inv | maze
+# 子地形比例（所有 proportion 之和必须 = 1.0）
+# 合法子地形：pyramid_slope | pyramid_slope_inv | pyramid_stairs | pyramid_stairs_inv | maze
 [terrain.standard.pyramid_slope]
 proportion = 0.15
 
@@ -127,7 +129,7 @@ pos = [0.0, 0.0, 0.35]
 [commands]
 # Velocity command resampling interval [min, max] (seconds).
 # 速度命令重采样区间 [min, max]（秒）
-resampling_time = [3.0, 6.0]
+resampling_time = [10.0, 10.0]
 
 [commands.limit]
 # Velocity command **hard limits** (curriculum may expand sampling range up to here).
@@ -140,8 +142,9 @@ ang_vel_z = [-1.5, 1.5]
 # Velocity command **initial sampling ranges** (expand towards limit when curriculum is enabled).
 # 速度命令 **初始采样范围**（curriculum 开启时会动态扩大到 limit）
 
-# Start forward-only; curriculum expands to full limit.
-# 初始只前进；curriculum 扩展到全范围
+# Start with forward-only to prevent reversing that triggers stair-curriculum demotions;
+# curriculum will expand towards limit.
+# 初始只前进，避免后退导致楼梯频繁降级；curriculum 会扩展到 limit
 lin_vel_x = [0.0, 0.5]
 lin_vel_y = [-0.3, 0.3]
 ang_vel_yaw = [-1.0, 1.0]
@@ -171,14 +174,6 @@ command_name = "base_velocity"
 weight = 0.5
 [rewards.track_ang_vel_z.params]
 std = 0.25
-command_name = "base_velocity"
-
-# --- Positive: feet air time (step quality) ---
-# --- 正向：脚部滞空时间（步态质量） ---
-[rewards.feet_air_time]
-weight = 1.0
-[rewards.feet_air_time.params]
-threshold = 0.3
 command_name = "base_velocity"
 
 # --- Negative: base stability ---
@@ -226,36 +221,39 @@ weight = -1.0
 # 触发阈值：被罚前允许的最大接触数
 threshold = 1
 
-# --- Negative: feet stumble (stair edge collision) ---
-# --- 负向：绊脚（台阶边缘碰撞）---
-[rewards.feet_stumble]
-weight = -2.0
+# # --- Extra: anti-tipping ---
+# # --- 额外：防倾倒 ---
+# [rewards.flat_orientation]
+# # Penalty on deviation from flat base orientation.
+# # 基座偏离水平姿态的惩罚
+# weight = -1.5
 
-# --- Negative: feet slide ---
-# --- 负向：脚部滑动 ---
-[rewards.feet_slide]
-weight = -0.5
+# [rewards.reach_goal]
+# # Reach-goal reward example (active only when env.goal_positions is maintained, i.e. track terrain).
+# # 到达目标奖励示例（仅在 track 地形下 env.goal_positions 被维护时生效）。
+# weight = 10.0
+# [rewards.reach_goal.params]
+# threshold = 0.6
 
-# --- Extra: anti-tipping ---
-# --- 额外：防倾倒 ---
-[rewards.flat_orientation]
-weight = -2.0  # Stronger orientation penalty for stairs
+# # --- Positive: feet air time (step quality) ---
+# # --- 正向：脚部滞空时间（步态质量） ---
+# [rewards.feet_air_time]
+# weight = 1.0
+# [rewards.feet_air_time.params]
+# threshold = 0.3
+# command_name = "base_velocity"
 
-# --- Extra: termination penalty ---
-# --- 额外：终止惩罚 ---
-[rewards.termination]
-weight = -1.0
+# # --- Negative: feet stumble (stair edge collision) ---
+# # --- 负向：绊脚（台阶边缘碰撞）---
+# [rewards.feet_stumble]
+# weight = -2.0
 
-[rewards.reach_goal]
-# Reach-goal reward example (active only when env.goal_positions is maintained, i.e. track terrain).
-# 到达目标奖励示例（仅在 track 地形下 env.goal_positions 被维护时生效）。
-weight = 10.0
-[rewards.reach_goal.params]
-threshold = 0.6
+# # --- Negative: feet slide ---
+# # --- 负向：脚部滑动 ---
+# [rewards.feet_slide]
+# weight = -0.5
 
-# TODO: you can add non-IsaacLab locomotion rewards such as energy /
-# correct_base_height / feet_stumble as needed.
-# After implementing the corresponding _reward_<name> method in
-# agent_ppo/feature/reward_process.py, you can activate it here.
-# TODO：可按需补充 energy / correct_base_height / feet_stumble 等非 IsaacLab 运控奖励。
-# 自行在 agent_ppo/feature/reward_process.py 实现对应 _reward_<name> 方法后即可在此激活。
+# # --- Extra: termination penalty ---
+# # --- 额外：终止惩罚 ---
+# [rewards.termination]
+# weight = -1.0
